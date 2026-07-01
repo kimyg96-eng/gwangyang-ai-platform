@@ -1,17 +1,12 @@
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <section className="mx-auto max-w-7xl px-6 py-8">
-        <header className="flex items-center justify-between">
-          <div className="text-xl font-bold">광양 AI 문화학습 플랫폼</div>
-          <nav className="hidden gap-6 text-sm text-slate-600 md:flex">
-            <span>AI 문화해설사</span>
-            <span>정채봉 아바타</span>
-            <span>문화지도</span>
-            <span>스토리 생성</span>
-          </nav>
-        </header>
+      <Header />
 
+      <section className="mx-auto max-w-7xl px-6 py-8">
         <section className="mt-16 rounded-3xl bg-white p-10 shadow-sm">
           <p className="mb-4 text-sm font-semibold text-emerald-600">
             Generative AI Cultural Learning Platform
@@ -63,6 +58,8 @@ export default function Home() {
           </div>
         </section>
       </section>
+
+      <Footer />
     </main>
   );
 }

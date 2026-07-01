@@ -14,3 +14,25 @@ export async function getCulturalAssets(): Promise<CulturalAsset[]> {
 
   return data ?? [];
 }
+
+export async function createCulturalAsset(asset: {
+  name: string;
+  category: string;
+  description: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+}) {
+  const { data, error } = await supabase
+    .from("cultural_assets")
+    .insert(asset)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Failed to create cultural asset:", error);
+    throw error;
+  }
+
+  return data;
+}

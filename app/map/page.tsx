@@ -5,6 +5,7 @@ import PageLayout from "@/components/PageLayout";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { useAssets } from "@/hooks/useAssets";
 import type { CulturalAsset } from "@/types/culturalAsset";
+import KakaoMap from "@/components/map/KakaoMap";
 
 export default function MapPage() {
   const { assets, loading } = useAssets();
@@ -58,16 +59,7 @@ export default function MapPage() {
         <section className="rounded-3xl bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-bold">지도 영역</h2>
 
-          <div className="mt-6 flex h-[480px] items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50">
-            <div className="text-center">
-              <p className="text-xl font-bold text-slate-700">
-                Kakao Map API 연동 예정
-              </p>
-              <p className="mt-3 text-slate-500">
-                선택한 문화자산의 위도·경도 기반 위치가 표시됩니다.
-              </p>
-            </div>
-          </div>
+        <KakaoMap />
 
           {currentAsset && (
             <div className="mt-6 rounded-2xl bg-slate-50 p-6">

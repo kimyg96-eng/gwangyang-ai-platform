@@ -18,6 +18,7 @@ export default function Header() {
             <Link href="/map">문화지도</Link>
             <Link href="/story">스토리 생성</Link>
             <Link href="/image">이미지 생성</Link>
+            <Link href="/admin">관리자</Link>
         </nav>
       </div>
     </header>

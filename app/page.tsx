@@ -1,65 +1,68 @@
-import Image from "next/image";
-
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <section className="mx-auto max-w-7xl px-6 py-8">
+        <header className="flex items-center justify-between">
+          <div className="text-xl font-bold">광양 AI 문화학습 플랫폼</div>
+          <nav className="hidden gap-6 text-sm text-slate-600 md:flex">
+            <span>AI 문화해설사</span>
+            <span>정채봉 아바타</span>
+            <span>문화지도</span>
+            <span>스토리 생성</span>
+          </nav>
+        </header>
+
+        <section className="mt-16 rounded-3xl bg-white p-10 shadow-sm">
+          <p className="mb-4 text-sm font-semibold text-emerald-600">
+            Generative AI Cultural Learning Platform
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          <h1 className="max-w-3xl text-4xl font-bold leading-tight">
+            생성형 AI 기반 광양 지역문화자산 학습 플랫폼
+          </h1>
+          <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-600">
+            매화마을, 섬진강, 백운산, 정채봉 문학 콘텐츠를 AI 문화해설사와
+            함께 탐색하고, 스토리와 이미지를 창작하는 체험형 학습 환경입니다.
+          </p>
+          <div className="mt-8 flex gap-4">
+            <button className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white">
+              AI 문화해설사 시작
+            </button>
+            <button className="rounded-xl border border-slate-300 px-6 py-3 font-semibold">
+              학습 시나리오 보기
+            </button>
+          </div>
+        </section>
+
+        <section className="mt-10 grid gap-6 md:grid-cols-4">
+          {[
+            ["AI 문화해설사", "광양 지역문화자산에 대해 질문하고 답변을 받습니다."],
+            ["AI 정채봉 아바타", "정채봉 작가의 생애와 작품세계를 대화형으로 학습합니다."],
+            ["AI 스토리 생성", "매화마을, 섬진강, 백운산을 소재로 이야기를 만듭니다."],
+            ["AI 이미지 생성", "상상한 지역문화 장면을 이미지로 표현합니다."],
+          ].map(([title, desc]) => (
+            <div key={title} className="rounded-2xl bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-bold">{title}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{desc}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="mt-10 rounded-3xl bg-white p-8 shadow-sm">
+          <h2 className="text-2xl font-bold">학습 프로세스</h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-4">
+            {["지역문화 탐색", "AI 상호작용", "창작 활동", "발표 및 공유"].map(
+              (step, index) => (
+                <div key={step} className="rounded-xl bg-slate-100 p-5">
+                  <p className="text-sm font-semibold text-emerald-600">
+                    STEP {index + 1}
+                  </p>
+                  <p className="mt-2 font-bold">{step}</p>
+                </div>
+              )
+            )}
+          </div>
+        </section>
+      </section>
+    </main>
   );
 }

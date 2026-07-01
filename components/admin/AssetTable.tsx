@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { CulturalAsset } from "@/types/culturalAsset";
 import { deleteCulturalAsset } from "@/services/assetService";
 
@@ -9,7 +10,33 @@ type AssetTableProps = {
   onEdit: (asset: CulturalAsset) => void;
 };
 
+type SortKey = "name" | "category" | "location";
+
 export default function AssetTable({ assets, loading, onEdit }: AssetTableProps) {
+  const [keyword, setKeyword] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+
+  const filteredAssets = useMemo(() => {
+    const q = keyword.trim().toLowerCase();
+
+    const result = !q
+      ? assets
+      : assets.filter((asset) => {
+          return (
+            asset.name.toLowerCase().includes(q) ||
+            asset.category.toLowerCase().includes(q) ||
+            (asset.location ?? "").toLowerCase().includes(q) ||
+            asset.description.toLowerCase().includes(q)
+          );
+        });
+
+    return [...result].sort((a, b) => {
+      const aValue = String(a[sortKey] ?? "");
+      const bValue = String(b[sortKey] ?? "");
+      return aValue.localeCompare(bValue, "ko");
+    });
+  }, [assets, keyword, sortKey]);
+
   const handleDelete = async (id: string) => {
     const ok = confirm("정말 삭제하시겠습니까?");
     if (!ok) return;
@@ -21,7 +48,33 @@ export default function AssetTable({ assets, loading, onEdit }: AssetTableProps)
 
   return (
     <section className="mt-8 rounded-3xl bg-white p-8 shadow-sm">
-      <h2 className="text-2xl font-bold">등록된 문화자산 목록</h2>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">등록된 문화자산 목록</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            총 {assets.length}개 중 {filteredAssets.length}개 표시
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 md:flex-row">
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500"
+          >
+            <option value="name">이름순</option>
+            <option value="category">분류순</option>
+            <option value="location">위치순</option>
+          </select>
+
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 md:w-80"
+            placeholder="문화자산명, 분류, 위치 검색"
+          />
+        </div>
+      </div>
 
       {loading ? (
         <p className="mt-6 text-slate-500">문화자산 데이터를 불러오는 중입니다...</p>
@@ -38,8 +91,9 @@ export default function AssetTable({ assets, loading, onEdit }: AssetTableProps)
                 <th className="p-4 text-center font-bold">관리</th>
               </tr>
             </thead>
+
             <tbody>
-              {assets.map((asset) => (
+              {filteredAssets.map((asset) => (
                 <tr key={asset.id} className="border-t border-slate-200">
                   <td className="p-4 font-semibold">{asset.name}</td>
                   <td className="p-4">{asset.category}</td>
@@ -62,6 +116,14 @@ export default function AssetTable({ assets, loading, onEdit }: AssetTableProps)
                   </td>
                 </tr>
               ))}
+
+              {filteredAssets.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                    검색 결과가 없습니다.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -36,3 +36,41 @@ export async function createCulturalAsset(asset: {
 
   return data;
 }
+
+export async function updateCulturalAsset(
+  id: string,
+  asset: {
+    name: string;
+    category: string;
+    description: string;
+    location: string;
+    latitude: number;
+    longitude: number;
+  }
+) {
+  const { data, error } = await supabase
+    .from("cultural_assets")
+    .update(asset)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Failed to update cultural asset:", error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteCulturalAsset(id: string) {
+  const { error } = await supabase
+    .from("cultural_assets")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("Failed to delete cultural asset:", error);
+    throw error;
+  }
+}

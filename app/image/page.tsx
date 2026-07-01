@@ -1,4 +1,7 @@
 import PageLayout from "@/components/PageLayout";
+import AppButton from "@/components/ui/AppButton";
+import AppTextarea from "@/components/ui/AppTextarea";
+import SectionTitle from "@/components/ui/SectionTitle";
 
 const styles = ["수채화", "일러스트", "동화책", "애니메이션", "사실적 표현"];
 const examples = [
@@ -12,14 +15,11 @@ export default function ImagePage() {
   return (
     <PageLayout>
       <section className="rounded-3xl bg-white p-8 shadow-sm">
-        <p className="text-sm font-semibold text-emerald-600">
-          AI Image Generation
-        </p>
-        <h1 className="mt-3 text-4xl font-bold">AI 이미지 생성</h1>
-        <p className="mt-4 max-w-3xl leading-8 text-slate-600">
-          학습자가 상상한 광양 지역문화 장면을 텍스트로 입력하면, 생성형
-          AI를 통해 이미지로 시각화하는 창작 학습 공간입니다.
-        </p>
+        <SectionTitle
+          label="AI Image Generation"
+          title="AI 이미지 생성"
+          description="학습자가 상상한 광양 지역문화 장면을 텍스트로 입력하면, 생성형 AI를 통해 이미지로 시각화하는 창작 학습 공간입니다."
+        />
       </section>
 
       <section className="mt-8 grid gap-8 lg:grid-cols-[360px_1fr]">
@@ -29,10 +29,9 @@ export default function ImagePage() {
           <label className="mt-6 block text-sm font-semibold text-slate-700">
             프롬프트 입력
           </label>
-          <textarea
-            className="mt-2 h-36 w-full rounded-xl border border-slate-300 px-4 py-3"
-            placeholder="예: 봄날의 매화마을과 섬진강을 배경으로 아이들이 산책하는 모습"
-          />
+          <div className="mt-2">
+            <AppTextarea placeholder="예: 봄날의 매화마을과 섬진강을 배경으로 아이들이 산책하는 모습" />
+          </div>
 
           <label className="mt-5 block text-sm font-semibold text-slate-700">
             표현 스타일
@@ -52,9 +51,9 @@ export default function ImagePage() {
             <option>4:3</option>
           </select>
 
-          <button className="mt-6 w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white">
-            이미지 생성하기
-          </button>
+          <div className="mt-6">
+            <AppButton>이미지 생성하기</AppButton>
+          </div>
 
           <div className="mt-6 rounded-2xl bg-slate-50 p-5">
             <p className="font-bold">프롬프트 예시</p>
@@ -91,15 +90,9 @@ export default function ImagePage() {
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <button className="rounded-xl border border-slate-300 px-5 py-3 font-semibold">
-              다시 생성
-            </button>
-            <button className="rounded-xl border border-slate-300 px-5 py-3 font-semibold">
-              다운로드
-            </button>
-            <button className="rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white">
-              학습 결과로 저장
-            </button>
+            <AppButton variant="secondary">다시 생성</AppButton>
+            <AppButton variant="secondary">다운로드</AppButton>
+            <AppButton>학습 결과로 저장</AppButton>
           </div>
         </section>
       </section>

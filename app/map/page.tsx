@@ -1,4 +1,5 @@
 import PageLayout from "@/components/PageLayout";
+import SectionTitle from "@/components/ui/SectionTitle";
 
 const places = [
   ["매화마을", "광양의 봄과 매화축제를 대표하는 문화마을"],
@@ -12,19 +13,17 @@ export default function MapPage() {
   return (
     <PageLayout>
       <section className="rounded-3xl bg-white p-8 shadow-sm">
-        <p className="text-sm font-semibold text-emerald-600">
-          Gwangyang Cultural Map
-        </p>
-        <h1 className="mt-3 text-4xl font-bold">광양 문화지도</h1>
-        <p className="mt-4 max-w-3xl leading-8 text-slate-600">
-          매화마을, 섬진강, 백운산, 광양읍성, 정채봉 문학 등 광양의
-          지역문화자산을 지도 기반으로 탐색하는 학습 공간입니다.
-        </p>
+        <SectionTitle
+          label="Gwangyang Cultural Map"
+          title="광양 문화지도"
+          description="매화마을, 섬진강, 백운산, 광양읍성, 정채봉 문학 등 광양의 지역문화자산을 지도 기반으로 탐색하는 학습 공간입니다."
+        />
       </section>
 
       <section className="mt-8 grid gap-8 lg:grid-cols-[360px_1fr]">
         <aside className="rounded-3xl bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold">문화자산 목록</h2>
+
           <div className="mt-6 space-y-3">
             {places.map(([title, desc]) => (
               <button

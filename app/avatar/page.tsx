@@ -1,4 +1,7 @@
 import PageLayout from "@/components/PageLayout";
+import AppButton from "@/components/ui/AppButton";
+import AppInput from "@/components/ui/AppInput";
+import SectionTitle from "@/components/ui/SectionTitle";
 
 const topics = [
   "작가의 생애",
@@ -27,14 +30,11 @@ export default function AvatarPage() {
         </aside>
 
         <section className="rounded-3xl bg-white p-8 shadow-sm">
-          <p className="text-sm font-semibold text-emerald-600">
-            AI Jeong Chae-bong Avatar
-          </p>
-          <h1 className="mt-3 text-4xl font-bold">AI 정채봉 아바타</h1>
-          <p className="mt-4 max-w-3xl leading-8 text-slate-600">
-            정채봉 작가의 생애와 작품세계, 문학적 가치관을 AI 아바타와의
-            대화를 통해 이해하는 학습 공간입니다.
-          </p>
+          <SectionTitle
+            label="AI Jeong Chae-bong Avatar"
+            title="AI 정채봉 아바타"
+            description="정채봉 작가의 생애와 작품세계, 문학적 가치관을 AI 아바타와의 대화를 통해 이해하는 학습 공간입니다."
+          />
 
           <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
             <div className="rounded-2xl bg-white p-5 shadow-sm">
@@ -56,35 +56,15 @@ export default function AvatarPage() {
               <p className="font-bold text-emerald-700">AI 정채봉 아바타</p>
               <p className="mt-3 leading-7 text-slate-700">
                 『오세암』은 순수한 마음, 믿음, 사랑의 가치를 담은 작품입니다.
-                저는 아이들의 맑은 시선을 통해 인간이 잃지 말아야 할 따뜻한
-                마음과 생명에 대한 존중을 이야기하고자 했습니다.
+                아이들의 맑은 시선을 통해 인간이 잃지 말아야 할 따뜻한 마음과
+                생명에 대한 존중을 이야기합니다.
               </p>
             </div>
 
             <div className="mt-6 flex gap-3">
-              <input
-                className="flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500"
-                placeholder="정채봉 작가에게 질문해 보세요."
-              />
-              <button className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white">
-                전송
-              </button>
+              <AppInput placeholder="정채봉 작가에게 질문해 보세요." />
+              <AppButton>전송</AppButton>
             </div>
-          </div>
-
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
-            {[
-              "정채봉 작가의 대표 작품은 무엇인가요?",
-              "정채봉 문학에 나타난 자연 사랑은 무엇인가요?",
-              "정채봉 문학과 광양은 어떻게 연결되나요?",
-            ].map((q) => (
-              <button
-                key={q}
-                className="rounded-xl border border-slate-200 bg-white p-4 text-left text-sm hover:bg-slate-50"
-              >
-                {q}
-              </button>
-            ))}
           </div>
         </section>
       </section>

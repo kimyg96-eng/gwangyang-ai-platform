@@ -15,6 +15,30 @@ export async function getCulturalAssets(): Promise<CulturalAsset[]> {
   return data ?? [];
 }
 
+export async function uploadAssetImage(file: File): Promise<string> {
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2)}.${fileExt}`;
+
+  const filePath = `assets/${fileName}`;
+
+  const { error } = await supabase.storage
+    .from("cultural-assets")
+    .upload(filePath, file);
+
+  if (error) {
+    console.error("Failed to upload image:", error);
+    throw error;
+  }
+
+  const { data } = supabase.storage
+    .from("cultural-assets")
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
 export async function createCulturalAsset(asset: {
   name: string;
   category: string;
@@ -22,6 +46,7 @@ export async function createCulturalAsset(asset: {
   location: string;
   latitude: number;
   longitude: number;
+  image_url?: string | null;
 }) {
   const { data, error } = await supabase
     .from("cultural_assets")
@@ -46,6 +71,7 @@ export async function updateCulturalAsset(
     location: string;
     latitude: number;
     longitude: number;
+    image_url?: string | null;
   }
 ) {
   const { data, error } = await supabase

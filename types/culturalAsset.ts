@@ -6,6 +6,6 @@ export type CulturalAsset = {
   location: string | null;
   latitude: number | null;
   longitude: number | null;
-  image_url?: string | null;
+  image_url: string | null;
   created_at: string;
 };

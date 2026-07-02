@@ -21,14 +21,12 @@ export default function AssetTable({ assets, loading, onEdit }: AssetTableProps)
 
     const result = !q
       ? assets
-      : assets.filter((asset) => {
-          return (
-            asset.name.toLowerCase().includes(q) ||
-            asset.category.toLowerCase().includes(q) ||
-            (asset.location ?? "").toLowerCase().includes(q) ||
-            asset.description.toLowerCase().includes(q)
-          );
-        });
+      : assets.filter((asset) =>
+          asset.name.toLowerCase().includes(q) ||
+          asset.category.toLowerCase().includes(q) ||
+          (asset.location ?? "").toLowerCase().includes(q) ||
+          asset.description.toLowerCase().includes(q)
+        );
 
     return [...result].sort((a, b) => {
       const aValue = String(a[sortKey] ?? "");
@@ -77,12 +75,15 @@ export default function AssetTable({ assets, loading, onEdit }: AssetTableProps)
       </div>
 
       {loading ? (
-        <p className="mt-6 text-slate-500">문화자산 데이터를 불러오는 중입니다...</p>
+        <p className="mt-6 text-slate-500">
+          문화자산 데이터를 불러오는 중입니다...
+        </p>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
-          <table className="w-full border-collapse text-left text-sm">
+        <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200">
+          <table className="w-full min-w-[900px] border-collapse text-left text-sm">
             <thead className="bg-slate-100">
               <tr>
+                <th className="p-4 font-bold">이미지</th>
                 <th className="p-4 font-bold">이름</th>
                 <th className="p-4 font-bold">분류</th>
                 <th className="p-4 font-bold">위치</th>
@@ -95,6 +96,19 @@ export default function AssetTable({ assets, loading, onEdit }: AssetTableProps)
             <tbody>
               {filteredAssets.map((asset) => (
                 <tr key={asset.id} className="border-t border-slate-200">
+                  <td className="p-4">
+                    {asset.image_url ? (
+                      <img
+                        src={asset.image_url}
+                        alt={asset.name}
+                        className="h-16 w-24 rounded-xl object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-24 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">
+                        이미지 없음
+                      </div>
+                    )}
+                  </td>
                   <td className="p-4 font-semibold">{asset.name}</td>
                   <td className="p-4">{asset.category}</td>
                   <td className="p-4">{asset.location}</td>
@@ -119,7 +133,7 @@ export default function AssetTable({ assets, loading, onEdit }: AssetTableProps)
 
               {filteredAssets.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                  <td colSpan={7} className="p-8 text-center text-slate-500">
                     검색 결과가 없습니다.
                   </td>
                 </tr>

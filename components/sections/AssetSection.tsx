@@ -21,6 +21,7 @@ export default function AssetSection() {
               key={asset.id}
               title={asset.name}
               description={asset.description}
+              imageUrl={asset.image_url}
             />
           ))}
         </div>

@@ -59,35 +59,51 @@ export default function MapPage() {
         <section className="rounded-3xl bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-bold">지도 영역</h2>
 
-        <KakaoMap />
+          <div className="mt-6">
+            <KakaoMap />
+          </div>
 
           {currentAsset && (
-            <div className="mt-6 rounded-2xl bg-slate-50 p-6">
-              <p className="text-sm font-semibold text-emerald-600">
-                선택된 문화자산
-              </p>
-              <h3 className="mt-2 text-2xl font-bold">{currentAsset.name}</h3>
-              <p className="mt-3 leading-7 text-slate-600">
-                {currentAsset.description}
-              </p>
+            <div className="mt-6 overflow-hidden rounded-2xl bg-slate-50">
+              {currentAsset.image_url ? (
+                <img
+                  src={currentAsset.image_url}
+                  alt={currentAsset.name}
+                  className="h-64 w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-64 items-center justify-center bg-slate-100 text-slate-400">
+                  등록된 이미지가 없습니다.
+                </div>
+              )}
 
-              <div className="mt-5 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
-                <p>
-                  <span className="font-semibold text-slate-800">분류:</span>{" "}
-                  {currentAsset.category}
+              <div className="p-6">
+                <p className="text-sm font-semibold text-emerald-600">
+                  선택된 문화자산
                 </p>
-                <p>
-                  <span className="font-semibold text-slate-800">위치:</span>{" "}
-                  {currentAsset.location}
+                <h3 className="mt-2 text-2xl font-bold">{currentAsset.name}</h3>
+                <p className="mt-3 leading-7 text-slate-600">
+                  {currentAsset.description}
                 </p>
-                <p>
-                  <span className="font-semibold text-slate-800">위도:</span>{" "}
-                  {currentAsset.latitude}
-                </p>
-                <p>
-                  <span className="font-semibold text-slate-800">경도:</span>{" "}
-                  {currentAsset.longitude}
-                </p>
+
+                <div className="mt-5 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+                  <p>
+                    <span className="font-semibold text-slate-800">분류:</span>{" "}
+                    {currentAsset.category}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-800">위치:</span>{" "}
+                    {currentAsset.location}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-800">위도:</span>{" "}
+                    {currentAsset.latitude}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-800">경도:</span>{" "}
+                    {currentAsset.longitude}
+                  </p>
+                </div>
               </div>
             </div>
           )}

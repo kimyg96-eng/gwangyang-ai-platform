@@ -5,11 +5,13 @@ import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 import SectionTitle from "@/components/ui/SectionTitle";
+import { saveChatHistory } from "@/services/chatService";
 
 const assets = ["매화마을", "섬진강", "백운산", "광양읍성", "정채봉 문학"];
 
 export default function GuidePage() {
   const [message, setMessage] = useState("");
+  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [reply, setReply] = useState(
     "안녕하세요. 저는 광양 지역문화자산을 안내하는 AI 문화해설사입니다. 매화마을, 섬진강, 백운산, 정채봉 문학에 대해 무엇이든 물어보세요."
   );
@@ -19,6 +21,7 @@ export default function GuidePage() {
     if (!message.trim()) return;
 
     setLoading(true);
+    const startTime = Date.now();
 
     try {
       const res = await fetch("/api/chat", {
@@ -31,15 +34,39 @@ export default function GuidePage() {
 
       const data = await res.json();
 
-      if (data.reply) {
-        setReply(data.reply);
-        } else if (data.error) {
-        setReply(`${data.error}\n${data.detail ?? ""}`);
-      } else {
-        setReply("AI 응답을 가져오지 못했습니다.");
-        }
-    } catch {
-      setReply("서버 연결 중 오류가 발생했습니다.");
+      const responseTime = Date.now() - startTime;
+      const answerText =
+        data.reply ??
+        `${data.error ?? "AI 응답 생성에 실패했습니다."}\n${data.detail ?? ""}`;
+
+      setReply(answerText);
+
+      await saveChatHistory({
+        agent_type: "AI 문화해설사",
+        asset_name: selectedAsset,
+        question: message,
+        answer: answerText,
+        response_time: responseTime,
+        model_name: "gpt-5",
+        user_role: "student",
+        reference_source: "OpenAI API",
+        tokens_used: null,
+      });
+    } catch (error) {
+      const errorText = "서버 연결 중 오류가 발생했습니다.";
+      setReply(errorText);
+
+      await saveChatHistory({
+        agent_type: "AI 문화해설사",
+        asset_name: selectedAsset,
+        question: message,
+        answer: errorText,
+        response_time: Date.now() - startTime,
+        model_name: "gpt-5",
+        user_role: "student",
+        reference_source: "OpenAI API",
+        tokens_used: null,
+      });
     } finally {
       setLoading(false);
     }
@@ -50,12 +77,20 @@ export default function GuidePage() {
       <section className="grid gap-8 lg:grid-cols-[280px_1fr]">
         <aside className="rounded-3xl bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold">지역문화자산</h2>
+
           <div className="mt-6 space-y-3">
             {assets.map((asset) => (
               <button
                 key={asset}
-                onClick={() => setMessage(`${asset}에 대해 설명해 주세요.`)}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-left font-medium hover:bg-emerald-50"
+                onClick={() => {
+                  setSelectedAsset(asset);
+                  setMessage(`${asset}에 대해 설명해 주세요.`);
+                }}
+                className={`w-full rounded-xl border px-4 py-3 text-left font-medium ${
+                  selectedAsset === asset
+                    ? "border-emerald-500 bg-emerald-50"
+                    : "border-slate-200 hover:bg-emerald-50"
+                }`}
               >
                 {asset}
               </button>
@@ -87,8 +122,9 @@ export default function GuidePage() {
                 }}
                 placeholder="궁금한 내용을 입력하세요."
               />
+
               <AppButton onClick={sendMessage} disabled={loading}>
-                {loading ? "생성 중..." : "전송"}
+                {loading ? "저장 중..." : "전송"}
               </AppButton>
             </div>
           </div>

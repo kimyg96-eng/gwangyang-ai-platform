@@ -1,14 +1,19 @@
 type AdminStatsProps = {
   assetCount: number;
   chatCount: number;
+  documentCount: number;
 };
 
-export default function AdminStats({ assetCount, chatCount }: AdminStatsProps) {
+export default function AdminStats({
+  assetCount,
+  chatCount,
+  documentCount,
+}: AdminStatsProps) {
   const stats = [
     ["등록 문화자산", `${assetCount}건`],
     ["AI 학습기록", `${chatCount}건`],
-    ["스토리 결과", "0건"],
-    ["이미지 결과", "0건"],
+    ["PDF 문서", `${documentCount}건`],
+    ["RAG 준비상태", documentCount > 0 ? "가능" : "대기"],
   ];
 
   return (

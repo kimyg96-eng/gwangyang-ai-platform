@@ -29,12 +29,15 @@ export default function GuidePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          message,
+          assetName: selectedAsset,
+        }),
       });
 
       const data = await res.json();
-
       const responseTime = Date.now() - startTime;
+
       const answerText =
         data.reply ??
         `${data.error ?? "AI 응답 생성에 실패했습니다."}\n${data.detail ?? ""}`;
@@ -47,12 +50,12 @@ export default function GuidePage() {
         question: message,
         answer: answerText,
         response_time: responseTime,
-        model_name: "gpt-5",
+        model_name: data.model_name ?? "gpt-5-mini",
         user_role: "student",
-        reference_source: "OpenAI API",
+        reference_source: data.reference_source ?? "RAG 문서 없음",
         tokens_used: null,
       });
-    } catch (error) {
+    } catch {
       const errorText = "서버 연결 중 오류가 발생했습니다.";
       setReply(errorText);
 
@@ -62,9 +65,9 @@ export default function GuidePage() {
         question: message,
         answer: errorText,
         response_time: Date.now() - startTime,
-        model_name: "gpt-5",
+        model_name: "gpt-5-mini",
         user_role: "student",
-        reference_source: "OpenAI API",
+        reference_source: "오류",
         tokens_used: null,
       });
     } finally {
@@ -102,7 +105,7 @@ export default function GuidePage() {
           <SectionTitle
             label="AI Cultural Guide"
             title="AI 문화해설사"
-            description="광양 지역문화자산에 대해 자유롭게 질문하면 AI 문화해설사가 역사·문화·생태적 의미를 설명합니다."
+            description="광양 지역문화자산에 대해 자유롭게 질문하면 AI 문화해설사가 업로드된 PDF 문서를 기반으로 답변합니다."
           />
 
           <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
@@ -124,7 +127,7 @@ export default function GuidePage() {
               />
 
               <AppButton onClick={sendMessage} disabled={loading}>
-                {loading ? "저장 중..." : "전송"}
+                {loading ? "답변 생성 중..." : "전송"}
               </AppButton>
             </div>
           </div>

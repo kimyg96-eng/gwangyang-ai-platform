@@ -9,7 +9,36 @@ type DocumentTableProps = {
   loading: boolean;
 };
 
-export default function DocumentTable({ documents, loading }: DocumentTableProps) {
+function getStatusLabel(status: string | null) {
+  switch (status) {
+    case "indexed":
+      return "색인 완료";
+    case "indexing":
+      return "색인 중";
+    case "failed":
+      return "실패";
+    default:
+      return "대기";
+  }
+}
+
+function getStatusClass(status: string | null) {
+  switch (status) {
+    case "indexed":
+      return "bg-emerald-100 text-emerald-700";
+    case "indexing":
+      return "bg-blue-100 text-blue-700";
+    case "failed":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-slate-100 text-slate-600";
+  }
+}
+
+export default function DocumentTable({
+  documents,
+  loading,
+}: DocumentTableProps) {
   const [keyword, setKeyword] = useState("");
   const [indexingId, setIndexingId] = useState<string | null>(null);
 
@@ -84,7 +113,9 @@ export default function DocumentTable({ documents, loading }: DocumentTableProps
       </div>
 
       {loading ? (
-        <p className="mt-6 text-slate-500">문서 데이터를 불러오는 중입니다...</p>
+        <p className="mt-6 text-slate-500">
+          문서 데이터를 불러오는 중입니다...
+        </p>
       ) : (
         <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200">
           <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
@@ -101,54 +132,67 @@ export default function DocumentTable({ documents, loading }: DocumentTableProps
             </thead>
 
             <tbody>
-              {filteredDocuments.map((doc) => (
-                <tr key={doc.id} className="border-t border-slate-200">
-                  <td className="p-4">{doc.asset_name}</td>
-                  <td className="p-4 font-semibold">{doc.title}</td>
-                  <td className="p-4">
-                    {doc.file_size
-                      ? `${(doc.file_size / 1024 / 1024).toFixed(2)} MB`
-                      : "-"}
-                  </td>
-                  <td className="p-4">
-                    {doc.indexed_status ?? "pending"}
-                  </td>
-                  <td className="p-4">
-                    {doc.uploaded_at
-                      ? new Date(doc.uploaded_at).toLocaleString()
-                      : "-"}
-                  </td>
-                  <td className="p-4">
-                    {doc.file_url ? (
-                      <a
-                        href={doc.file_url}
-                        target="_blank"
-                        className="font-semibold text-emerald-600"
-                      >
-                        PDF 보기
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td className="p-4 text-center">
-                    <button
-                      onClick={() => handleIndex(doc.id)}
-                      disabled={indexingId === doc.id}
-                      className="mr-2 rounded-lg bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700 disabled:bg-slate-400"
-                    >
-                      {indexingId === doc.id ? "색인 중..." : "RAG 색인"}
-                    </button>
+              {filteredDocuments.map((doc) => {
+                const isIndexing = indexingId === doc.id;
 
-                    <button
-                      onClick={() => handleDelete(doc.id)}
-                      className="rounded-lg bg-red-500 px-3 py-2 text-white hover:bg-red-600"
-                    >
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                return (
+                  <tr key={doc.id} className="border-t border-slate-200">
+                    <td className="p-4">{doc.asset_name}</td>
+                    <td className="p-4 font-semibold">{doc.title}</td>
+                    <td className="p-4">
+                      {doc.file_size
+                        ? `${(doc.file_size / 1024 / 1024).toFixed(2)} MB`
+                        : "-"}
+                    </td>
+                    <td className="p-4">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
+                          isIndexing ? "indexing" : doc.indexed_status
+                        )}`}
+                      >
+                        {isIndexing
+                          ? "색인 중"
+                          : getStatusLabel(doc.indexed_status)}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      {doc.uploaded_at
+                        ? new Date(doc.uploaded_at).toLocaleString()
+                        : "-"}
+                    </td>
+                    <td className="p-4">
+                      {doc.file_url ? (
+                        <a
+                          href={doc.file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-emerald-600"
+                        >
+                          PDF 보기
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="p-4 text-center">
+                      <button
+                        onClick={() => handleIndex(doc.id)}
+                        disabled={isIndexing}
+                        className="mr-2 rounded-lg bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700 disabled:bg-slate-400"
+                      >
+                        {isIndexing ? "색인 중..." : "RAG 색인"}
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(doc.id)}
+                        className="rounded-lg bg-red-500 px-3 py-2 text-white hover:bg-red-600"
+                      >
+                        삭제
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
 
               {filteredDocuments.length === 0 && (
                 <tr>

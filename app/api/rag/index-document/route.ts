@@ -6,32 +6,27 @@ import { supabase } from "@/services/supabase";
 export async function POST(req: Request) {
   try {
     const { documentId } = await req.json();
+    const vectorStoreId = process.env.OPENAI_VECTOR_STORE_ID;
 
-    if (!documentId) {
+    if (!vectorStoreId) {
       return NextResponse.json(
-        { error: "documentId가 필요합니다." },
-        { status: 400 }
+        { error: "OPENAI_VECTOR_STORE_ID가 설정되지 않았습니다." },
+        { status: 500 }
       );
     }
 
-    const { data: document, error: documentError } = await supabase
+    const { data: document, error } = await supabase
       .from("cultural_documents")
       .select("*")
       .eq("id", documentId)
       .single();
 
-    if (documentError || !document) {
-      return NextResponse.json(
-        { error: "문서를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+    if (error || !document) {
+      return NextResponse.json({ error: "문서를 찾을 수 없습니다." }, { status: 404 });
     }
 
     if (!document.file_url) {
-      return NextResponse.json(
-        { error: "PDF 파일 URL이 없습니다." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "PDF 파일 URL이 없습니다." }, { status: 400 });
     }
 
     await supabase
@@ -39,33 +34,29 @@ export async function POST(req: Request) {
       .update({ indexed_status: "indexing" })
       .eq("id", documentId);
 
-    const pdfResponse = await fetch(document.file_url);
+    let openaiFileId = document.openai_file_id;
 
-    if (!pdfResponse.ok) {
-      throw new Error("PDF 파일을 다운로드할 수 없습니다.");
+    if (!openaiFileId) {
+      const pdfResponse = await fetch(document.file_url);
+      const buffer = Buffer.from(await pdfResponse.arrayBuffer());
+
+      const uploadedFile = await openai.files.create({
+        file: await toFile(buffer, `${document.title}.pdf`),
+        purpose: "assistants",
+      });
+
+      openaiFileId = uploadedFile.id;
     }
 
-    const arrayBuffer = await pdfResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const uploadedFile = await openai.files.create({
-      file: await toFile(buffer, `${document.title}.pdf`),
-      purpose: "assistants",
-    });
-
-    const vectorStore = await openai.vectorStores.create({
-      name: `gwangyang-${document.asset_name ?? "document"}-${Date.now()}`,
-    });
-
-    await openai.vectorStores.files.create(vectorStore.id, {
-      file_id: uploadedFile.id,
+    await openai.vectorStores.files.create(vectorStoreId, {
+      file_id: openaiFileId,
     });
 
     await supabase
       .from("cultural_documents")
       .update({
-        openai_file_id: uploadedFile.id,
-        vector_store_id: vectorStore.id,
+        openai_file_id: openaiFileId,
+        vector_store_id: vectorStoreId,
         indexed_status: "indexed",
         indexed_at: new Date().toISOString(),
       })
@@ -73,8 +64,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      openai_file_id: uploadedFile.id,
-      vector_store_id: vectorStore.id,
+      openai_file_id: openaiFileId,
+      vector_store_id: vectorStoreId,
     });
   } catch (error) {
     console.error("RAG indexing error:", error);

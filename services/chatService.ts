@@ -1,5 +1,23 @@
 import { supabase } from "@/services/supabase";
 
+export async function createLearningSession() {
+  const { data, error } = await supabase
+    .from("learning_sessions")
+    .insert({
+      learner_name: "anonymous",
+      school_level: "general",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Failed to create learning session:", error);
+    throw error;
+  }
+
+  return data;
+}
+
 export async function saveChatHistory(chat: {
   session_id?: string | null;
   agent_type: string;
@@ -31,6 +49,22 @@ export async function saveChatHistory(chat: {
 
   if (error) {
     console.error("Failed to save chat history:", error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateChatFeedback(id: string, feedback: "helpful" | "bad") {
+  const { data, error } = await supabase
+    .from("chat_history")
+    .update({ feedback })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Failed to update chat feedback:", error);
     throw error;
   }
 

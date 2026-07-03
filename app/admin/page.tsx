@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import PageLayout from "@/components/PageLayout";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { useAssets } from "@/hooks/useAssets";
@@ -24,6 +24,36 @@ export default function AdminPage() {
   const [editingAsset, setEditingAsset] = useState<CulturalAsset | null>(null);
   const [activeTab, setActiveTab] = useState<AdminTab>("assets");
 
+  const helpfulCount = chats.filter((chat) => chat.feedback === "helpful").length;
+  const badCount = chats.filter((chat) => chat.feedback === "bad").length;
+  const feedbackTotal = helpfulCount + badCount;
+  const satisfactionRate =
+    feedbackTotal > 0 ? Math.round((helpfulCount / feedbackTotal) * 100) : 0;
+
+  const averageResponseTime = useMemo(() => {
+    const validTimes = chats
+      .map((chat) => chat.response_time)
+      .filter((time): time is number => typeof time === "number");
+
+    if (validTimes.length === 0) return 0;
+
+    return Math.round(
+      validTimes.reduce((sum, time) => sum + time, 0) / validTimes.length
+    );
+  }, [chats]);
+
+  const mostAskedAsset = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    chats.forEach((chat) => {
+      const asset = chat.asset_name ?? "미지정";
+      counts[asset] = (counts[asset] ?? 0) + 1;
+    });
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    return sorted[0] ?? ["데이터 없음", 0];
+  }, [chats]);
+
   const tabs = [
     ["assets", "문화자산 관리"],
     ["chats", "AI 학습기록"],
@@ -45,6 +75,8 @@ export default function AdminPage() {
         assetCount={assets.length}
         chatCount={chats.length}
         documentCount={documents.length}
+        helpfulCount={helpfulCount}
+        badCount={badCount}
       />
 
       <section className="mt-8 rounded-3xl bg-white p-4 shadow-sm">
@@ -96,10 +128,54 @@ export default function AdminPage() {
       {activeTab === "stats" && (
         <section className="mt-8 rounded-3xl bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-bold">학습 통계</h2>
-          <p className="mt-3 text-slate-600">
-            등록 문화자산, AI 학습기록, 스토리 생성, 이미지 생성 결과를
-            분석하는 통계 영역입니다.
-          </p>
+
+          <div className="mt-6 grid gap-6 md:grid-cols-4">
+            <div className="rounded-2xl bg-slate-50 p-6">
+              <p className="text-sm font-semibold text-slate-500">
+                평균 응답시간
+              </p>
+              <p className="mt-3 text-3xl font-bold text-emerald-600">
+                {averageResponseTime}ms
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-6">
+              <p className="text-sm font-semibold text-slate-500">
+                도움됨
+              </p>
+              <p className="mt-3 text-3xl font-bold text-emerald-600">
+                {helpfulCount}건
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-6">
+              <p className="text-sm font-semibold text-slate-500">
+                부족함
+              </p>
+              <p className="mt-3 text-3xl font-bold text-red-500">
+                {badCount}건
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-6">
+              <p className="text-sm font-semibold text-slate-500">
+                AI 만족도
+              </p>
+              <p className="mt-3 text-3xl font-bold text-emerald-600">
+                {feedbackTotal > 0 ? `${satisfactionRate}%` : "대기"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-2xl bg-slate-50 p-6">
+            <p className="text-sm font-semibold text-slate-500">
+              가장 많이 질문된 문화자산
+            </p>
+            <p className="mt-3 text-2xl font-bold text-slate-900">
+              {mostAskedAsset[0]}
+            </p>
+            <p className="mt-2 text-slate-600">{mostAskedAsset[1]}건 질문</p>
+          </div>
         </section>
       )}
     </PageLayout>

@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import { openai } from "@/services/openai";
 import { supabase } from "@/services/supabase";
 
+type ChatInput = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export async function POST(req: Request) {
   try {
-    const { message, assetName } = await req.json();
+    const { message, assetName, agentType, history } = await req.json();
     const vectorStoreId = process.env.OPENAI_VECTOR_STORE_ID;
 
     if (!message) {
@@ -25,37 +30,44 @@ export async function POST(req: Request) {
 
     const { data: relatedDocs } = await query;
 
+    const systemPrompt =
+      agentType === "avatar"
+        ? `
+당신은 정채봉 작가의 생애와 작품세계를 설명하는 AI 정채봉 아바타입니다.
+업로드된 PDF 문서 내용을 최우선 근거로 사용하고, 이전 대화 맥락을 참고하여 자연스럽게 이어서 답변하세요.
+문서에 없는 내용은 단정하지 말고 "문서에서 확인되지 않습니다"라고 말하세요.
+
+답변 형식:
+[작품/생애 설명]
+[문학적 의미]
+[학습 포인트]
+[추가 탐구 질문]
+        `
+        : `
+당신은 광양 지역문화자산을 설명하는 AI 문화해설사입니다.
+업로드된 PDF 문서 내용을 최우선 근거로 사용하고, 이전 대화 맥락을 참고하여 자연스럽게 이어서 답변하세요.
+문서에 없는 내용은 단정하지 말고 "문서에서 확인되지 않습니다"라고 말하세요.
+
+답변 형식:
+[핵심 설명]
+[지역문화적 가치]
+[학습 포인트]
+[추가 탐구 질문]
+        `;
+
+    const recentHistory: ChatInput[] = Array.isArray(history)
+      ? history.slice(-6).map((item: ChatInput) => ({
+          role: item.role,
+          content: item.content,
+        }))
+      : [];
+
     const response = await openai.responses.create({
       model: "gpt-5-mini",
       input: [
-        {
-          role: "system",
-          content: `
-당신은 광양 지역문화자산을 설명하는 AI 문화해설사입니다.
-
-답변 규칙:
-1. 업로드된 PDF 문서 내용을 최우선 근거로 사용합니다.
-2. 문서에 없는 내용은 단정하지 말고 "문서에서 확인되지 않습니다"라고 말합니다.
-3. 초·중·고 학생이 이해하기 쉽게 설명합니다.
-4. 답변은 다음 형식으로 작성합니다.
-
-[핵심 설명]
-문화자산의 의미를 쉽게 설명합니다.
-
-[지역문화적 가치]
-광양 지역과 어떤 관련이 있는지 설명합니다.
-
-[학습 포인트]
-학생이 배울 수 있는 내용을 2~3개 제시합니다.
-
-[추가 탐구 질문]
-학생이 더 생각해 볼 질문 1개를 제시합니다.
-          `,
-        },
-        {
-          role: "user",
-          content: message,
-        },
+        { role: "system", content: systemPrompt },
+        ...recentHistory,
+        { role: "user", content: message },
       ],
       ...(vectorStoreId && {
         tools: [

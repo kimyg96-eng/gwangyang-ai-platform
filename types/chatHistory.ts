@@ -10,5 +10,6 @@ export type ChatHistory = {
   user_role: string | null;
   reference_source: string | null;
   tokens_used: number | null;
+  feedback: string | null;
   created_at: string;
 };

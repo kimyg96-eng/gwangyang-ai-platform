@@ -2,18 +2,26 @@ type AdminStatsProps = {
   assetCount: number;
   chatCount: number;
   documentCount: number;
+  helpfulCount: number;
+  badCount: number;
 };
 
 export default function AdminStats({
   assetCount,
   chatCount,
   documentCount,
+  helpfulCount,
+  badCount,
 }: AdminStatsProps) {
+  const feedbackTotal = helpfulCount + badCount;
+  const satisfactionRate =
+    feedbackTotal > 0 ? Math.round((helpfulCount / feedbackTotal) * 100) : 0;
+
   const stats = [
     ["등록 문화자산", `${assetCount}건`],
     ["AI 학습기록", `${chatCount}건`],
     ["PDF 문서", `${documentCount}건`],
-    ["RAG 준비상태", documentCount > 0 ? "가능" : "대기"],
+    ["AI 만족도", feedbackTotal > 0 ? `${satisfactionRate}%` : "대기"],
   ];
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import SectionTitle from "@/components/ui/SectionTitle";
@@ -18,6 +19,9 @@ type QuizItem = {
 };
 
 export default function QuizPage() {
+  const searchParams = useSearchParams();
+  const themeFromMap = searchParams.get("theme");
+
   const [theme, setTheme] = useState(themes[0]);
   const [targetLevel, setTargetLevel] = useState(levels[0]);
   const [quizType, setQuizType] = useState(quizTypes[0]);
@@ -26,6 +30,16 @@ export default function QuizPage() {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [showResult, setShowResult] = useState(false);
   const [referenceSource, setReferenceSource] = useState("");
+
+  useEffect(() => {
+    if (!themeFromMap) return;
+
+    setTheme(themeFromMap);
+    setQuizzes([]);
+    setSelectedAnswers({});
+    setShowResult(false);
+    setReferenceSource("");
+  }, [themeFromMap]);
 
   const generateQuiz = async () => {
     setLoading(true);
@@ -96,6 +110,7 @@ export default function QuizPage() {
             onChange={(e) => setTheme(e.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
+            {themes.includes(theme) ? null : <option>{theme}</option>}
             {themes.map((item) => (
               <option key={item}>{item}</option>
             ))}

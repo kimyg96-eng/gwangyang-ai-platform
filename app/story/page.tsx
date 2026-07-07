@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
@@ -14,6 +15,9 @@ const levels = ["초등학생", "중학생", "고등학생"];
 const lengths = ["짧게 (약 500자)", "보통 (약 1000자)", "길게 (약 2000자)"];
 
 export default function StoryPage() {
+  const searchParams = useSearchParams();
+  const themeFromMap = searchParams.get("theme");
+
   const [theme, setTheme] = useState(themes[0]);
   const [storyType, setStoryType] = useState(types[0]);
   const [targetLevel, setTargetLevel] = useState(levels[0]);
@@ -23,6 +27,13 @@ export default function StoryPage() {
   const [story, setStory] = useState("");
   const [referenceSource, setReferenceSource] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!themeFromMap) return;
+
+    setTheme(themeFromMap);
+    setIdea(`${themeFromMap}을 배경으로 한 교육용 이야기를 만들어 주세요.`);
+  }, [themeFromMap]);
 
   const generateStory = async () => {
     if (!character.trim() || !idea.trim()) {
@@ -50,25 +61,24 @@ export default function StoryPage() {
 
       const data = await res.json();
 
-      setStory(
+      const storyText =
         data.story ??
-          `${data.error ?? "스토리 생성에 실패했습니다."}\n${data.detail ?? ""}`
-      );
+        `${data.error ?? "스토리 생성에 실패했습니다."}\n${data.detail ?? ""}`;
+
+      setStory(storyText);
       setReferenceSource(data.reference_source ?? "");
-        await saveStoryResult({
-          theme,
-          story_type: storyType,
-          target_level: targetLevel,
-          story_length: storyLength,
-          character,
-          idea,
-          story:
-            data.story ??
-            `${data.error ?? "스토리 생성에 실패했습니다."}\n${data.detail ?? ""}`,
-          reference_source: data.reference_source ?? "",
-          model_name: data.model_name ?? "gpt-5-mini",
-        });
-        console.log("스토리 저장 완료");
+
+      await saveStoryResult({
+        theme,
+        story_type: storyType,
+        target_level: targetLevel,
+        story_length: storyLength,
+        character,
+        idea,
+        story: storyText,
+        reference_source: data.reference_source ?? "",
+        model_name: data.model_name ?? "gpt-5-mini",
+      });
     } finally {
       setLoading(false);
     }
@@ -96,6 +106,7 @@ export default function StoryPage() {
             onChange={(e) => setTheme(e.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
+            {themes.includes(theme) ? null : <option>{theme}</option>}
             {themes.map((item) => (
               <option key={item}>{item}</option>
             ))}

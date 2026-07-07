@@ -5,6 +5,9 @@ import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 import SectionTitle from "@/components/ui/SectionTitle";
+import { useSearchParams } from "next/navigation";
+
+
 import {
   createLearningSession,
   saveChatHistory,
@@ -36,6 +39,8 @@ const initialMessage: ChatMessage = {
 };
 
 export default function GuidePage() {
+    const searchParams = useSearchParams();
+  const assetFromMap = searchParams.get("asset");
   const [message, setMessage] = useState("");
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,9 +49,14 @@ export default function GuidePage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
 
+
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  if (!assetFromMap) return;
+
+  setSelectedAsset(assetFromMap);
+  setMessage(`${assetFromMap}에 대해 설명해 주세요.`);
+}, [assetFromMap]);
 
   const startNewChat = () => {
     setMessages([initialMessage]);
@@ -109,8 +119,7 @@ export default function GuidePage() {
 
       const data = await res.json();
       const time = Date.now() - startTime;
-
-      const answerText =
+            const answerText =
         data.reply ??
         `${data.error ?? "AI 응답 생성에 실패했습니다."}\n${data.detail ?? ""}`;
 

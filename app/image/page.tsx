@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import AppTextarea from "@/components/ui/AppTextarea";
@@ -18,12 +19,24 @@ const examples = [
 ];
 
 export default function ImagePage() {
+  const searchParams = useSearchParams();
+  const themeFromMap = searchParams.get("theme");
+
   const [theme, setTheme] = useState(themes[0]);
   const [style, setStyle] = useState(styles[0]);
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [finalPrompt, setFinalPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!themeFromMap) return;
+
+    setTheme(themeFromMap);
+    setPrompt(`${themeFromMap}을 배경으로 학생들이 지역문화를 배우는 따뜻한 교육용 삽화`);
+    setImageUrl("");
+    setFinalPrompt("");
+  }, [themeFromMap]);
 
   const generateImage = async () => {
     if (!prompt.trim()) {
@@ -48,7 +61,11 @@ export default function ImagePage() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error ?? "이미지 생성에 실패했습니다.");
+        alert(
+          `${data.error ?? "이미지 생성에 실패했습니다."}\n\n상세 오류:\n${
+            data.detail ?? "상세 오류 없음"
+          }`
+        );
         return;
       }
 
@@ -93,6 +110,7 @@ export default function ImagePage() {
             onChange={(e) => setTheme(e.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
+            {themes.includes(theme) ? null : <option>{theme}</option>}
             {themes.map((item) => (
               <option key={item}>{item}</option>
             ))}

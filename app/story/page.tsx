@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 import AppTextarea from "@/components/ui/AppTextarea";
 import SectionTitle from "@/components/ui/SectionTitle";
+import LoadingState from "@/components/ui/LoadingState";
 import { saveStoryResult } from "@/services/storyService";
 
 const themes = ["매화마을", "섬진강", "백운산", "정채봉 문학"];
@@ -14,26 +15,46 @@ const types = ["동화", "모험 이야기", "환경 이야기", "우정 이야�
 const levels = ["초등학생", "중학생", "고등학생"];
 const lengths = ["짧게 (약 500자)", "보통 (약 1000자)", "길게 (약 2000자)"];
 
-export default function StoryPage() {
+type StoryApiResponse = {
+  story?: string;
+  error?: string;
+  detail?: string;
+  reference_source?: string;
+  model_name?: string;
+};
+
+function StoryContent() {
   const searchParams = useSearchParams();
   const themeFromMap = searchParams.get("theme");
 
-  const [theme, setTheme] = useState(themes[0]);
+  return (
+    <StoryGenerator
+      key={themeFromMap ?? "story-default"}
+      initialTheme={themeFromMap}
+    />
+  );
+}
+
+type StoryGeneratorProps = {
+  initialTheme: string | null;
+};
+
+function StoryGenerator({ initialTheme }: StoryGeneratorProps) {
+  const resolvedInitialTheme = initialTheme ?? themes[0];
+
+  const [theme, setTheme] = useState(resolvedInitialTheme);
   const [storyType, setStoryType] = useState(types[0]);
   const [targetLevel, setTargetLevel] = useState(levels[0]);
   const [storyLength, setStoryLength] = useState(lengths[1]);
   const [character, setCharacter] = useState("");
-  const [idea, setIdea] = useState("");
+  const [idea, setIdea] = useState(
+    initialTheme
+      ? `${initialTheme}을 배경으로 한 교육용 이야기를 만들어 주세요.`
+      : ""
+  );
   const [story, setStory] = useState("");
   const [referenceSource, setReferenceSource] = useState("");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!themeFromMap) return;
-
-    setTheme(themeFromMap);
-    setIdea(`${themeFromMap}을 배경으로 한 교육용 이야기를 만들어 주세요.`);
-  }, [themeFromMap]);
 
   const generateStory = async () => {
     if (!character.trim() || !idea.trim()) {
@@ -44,7 +65,7 @@ export default function StoryPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/story", {
+      const response = await fetch("/api/story", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -59,8 +80,7 @@ export default function StoryPage() {
         }),
       });
 
-      const data = await res.json();
-
+      const data = (await response.json()) as StoryApiResponse;
       const storyText =
         data.story ??
         `${data.error ?? "스토리 생성에 실패했습니다."}\n${data.detail ?? ""}`;
@@ -68,20 +88,33 @@ export default function StoryPage() {
       setStory(storyText);
       setReferenceSource(data.reference_source ?? "");
 
-      await saveStoryResult({
-        theme,
-        story_type: storyType,
-        target_level: targetLevel,
-        story_length: storyLength,
-        character,
-        idea,
-        story: storyText,
-        reference_source: data.reference_source ?? "",
-        model_name: data.model_name ?? "gpt-5-mini",
-      });
+      if (response.ok && data.story) {
+        await saveStoryResult({
+          theme,
+          story_type: storyType,
+          target_level: targetLevel,
+          story_length: storyLength,
+          character,
+          idea,
+          story: storyText,
+          reference_source: data.reference_source ?? "",
+          model_name: data.model_name ?? "gpt-5-mini",
+        });
+      }
+    } catch (error: unknown) {
+      console.error("스토리 생성 실패:", error);
+      setStory("스토리를 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      setReferenceSource("");
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyStory = async () => {
+    if (!story) return;
+
+    await navigator.clipboard.writeText(story);
+    alert("스토리가 복사되었습니다.");
   };
 
   return (
@@ -103,12 +136,14 @@ export default function StoryPage() {
           </label>
           <select
             value={theme}
-            onChange={(e) => setTheme(e.target.value)}
+            onChange={(event) => setTheme(event.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
-            {themes.includes(theme) ? null : <option>{theme}</option>}
+            {themes.includes(theme) ? null : <option value={theme}>{theme}</option>}
             {themes.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
@@ -117,11 +152,13 @@ export default function StoryPage() {
           </label>
           <select
             value={storyType}
-            onChange={(e) => setStoryType(e.target.value)}
+            onChange={(event) => setStoryType(event.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
             {types.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
@@ -130,11 +167,13 @@ export default function StoryPage() {
           </label>
           <select
             value={targetLevel}
-            onChange={(e) => setTargetLevel(e.target.value)}
+            onChange={(event) => setTargetLevel(event.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
             {levels.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
@@ -143,11 +182,13 @@ export default function StoryPage() {
           </label>
           <select
             value={storyLength}
-            onChange={(e) => setStoryLength(e.target.value)}
+            onChange={(event) => setStoryLength(event.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
             {lengths.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
@@ -157,7 +198,7 @@ export default function StoryPage() {
           <div className="mt-2">
             <AppInput
               value={character}
-              onChange={(e) => setCharacter(e.target.value)}
+              onChange={(event) => setCharacter(event.target.value)}
               placeholder="예: 섬진강을 좋아하는 소년 민우"
             />
           </div>
@@ -168,13 +209,13 @@ export default function StoryPage() {
           <div className="mt-2">
             <AppTextarea
               value={idea}
-              onChange={(e) => setIdea(e.target.value)}
+              onChange={(event) => setIdea(event.target.value)}
               placeholder="예: 민우가 섬진강에서 신비한 물고기를 만나 자연을 지키는 방법을 배우는 이야기"
             />
           </div>
 
           <div className="mt-6">
-            <AppButton onClick={generateStory} disabled={loading}>
+            <AppButton onClick={() => void generateStory()} disabled={loading}>
               {loading ? "스토리 생성 중..." : "스토리 생성하기"}
             </AppButton>
           </div>
@@ -184,7 +225,9 @@ export default function StoryPage() {
           <h2 className="text-2xl font-bold">생성된 이야기</h2>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            {story ? (
+            {loading ? (
+              <LoadingState message="AI가 교육용 스토리를 생성하고 있습니다..." />
+            ) : story ? (
               <>
                 <p className="text-sm font-semibold text-emerald-600">
                   주제: {theme} / 유형: {storyType}
@@ -213,17 +256,41 @@ export default function StoryPage() {
             )}
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <AppButton
-              variant="secondary"
-              onClick={generateStory}
-              disabled={loading}
-            >
-              다시 생성
-            </AppButton>
-          </div>
+          {story && (
+            <div className="mt-6 flex flex-wrap gap-3">
+              <AppButton
+                variant="secondary"
+                onClick={() => void generateStory()}
+                disabled={loading}
+              >
+                다시 생성
+              </AppButton>
+
+              <AppButton variant="secondary" onClick={() => void copyStory()}>
+                복사
+              </AppButton>
+
+              <AppButton variant="secondary" onClick={() => window.print()}>
+                PDF / 인쇄
+              </AppButton>
+            </div>
+          )}
         </section>
       </section>
     </PageLayout>
+  );
+}
+
+export default function StoryPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageLayout>
+          <LoadingState message="스토리 생성 화면을 준비하고 있습니다..." />
+        </PageLayout>
+      }
+    >
+      <StoryContent />
+    </Suspense>
   );
 }

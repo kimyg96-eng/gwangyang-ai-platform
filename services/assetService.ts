@@ -44,8 +44,8 @@ export async function createCulturalAsset(asset: {
   category: string;
   description: string;
   location: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   image_url?: string | null;
 }) {
   const { data, error } = await supabase
@@ -69,8 +69,8 @@ export async function updateCulturalAsset(
     category: string;
     description: string;
     location: string;
-    latitude: number;
-    longitude: number;
+    latitude: number | null;
+    longitude: number | null;
     image_url?: string | null;
   }
 ) {

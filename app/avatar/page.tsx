@@ -5,6 +5,7 @@ import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 import SectionTitle from "@/components/ui/SectionTitle";
+import LoadingState from "@/components/ui/LoadingState";
 import {
   createLearningSession,
   saveChatHistory,
@@ -280,7 +281,11 @@ export default function AvatarPage() {
               {loading && (
                 <div className="flex justify-start">
                   <div className="rounded-2xl bg-white p-5 text-slate-500 shadow-sm">
-                    AI 정채봉 아바타가 답변을 생성하고 있습니다...
+                    {loading && (
+                      <div className="flex justify-start">
+                        <LoadingState message="AI 정채봉 아바타가 답변을 생성하고 있습니다..." />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

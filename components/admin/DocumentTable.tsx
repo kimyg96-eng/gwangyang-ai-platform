@@ -147,12 +147,12 @@ export default function DocumentTable({
                     <td className="p-4">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
-                          isIndexing ? "indexing" : doc.indexed_status
+                          isIndexing ? "indexing" : doc.indexed_status ?? "pending"
                         )}`}
                       >
-                        {isIndexing
-                          ? "색인 중"
-                          : getStatusLabel(doc.indexed_status)}
+                       {isIndexing
+  ? "색인 중"
+  : doc.indexed_status ?? "pending"}
                       </span>
                     </td>
                     <td className="p-4">

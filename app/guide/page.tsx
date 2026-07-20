@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 import SectionTitle from "@/components/ui/SectionTitle";
-import { useSearchParams } from "next/navigation";
-
-
+import LoadingState from "@/components/ui/LoadingState";
 import {
   createLearningSession,
   saveChatHistory,
@@ -32,45 +31,68 @@ type ChatMessage = {
   responseTime?: number;
 };
 
+type ChatApiResponse = {
+  reply?: string;
+  error?: string;
+  detail?: string;
+  model_name?: string;
+  reference_source?: string;
+  reference_files?: ReferenceFile[];
+};
+
 const initialMessage: ChatMessage = {
   role: "assistant",
   content:
     "안녕하세요. 저는 광양 지역문화자산을 안내하는 AI 문화해설사입니다. 매화마을, 섬진강, 백운산, 정채봉 문학에 대해 무엇이든 물어보세요.",
 };
 
-export default function GuidePage() {
-    const searchParams = useSearchParams();
+function GuideContent() {
+  const searchParams = useSearchParams();
   const assetFromMap = searchParams.get("asset");
-  const [message, setMessage] = useState("");
-  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+
+  return (
+    <GuideChat
+      key={assetFromMap ?? "guide-default"}
+      initialAsset={assetFromMap}
+    />
+  );
+}
+
+type GuideChatProps = {
+  initialAsset: string | null;
+};
+
+function GuideChat({ initialAsset }: GuideChatProps) {
+  const [message, setMessage] = useState(
+    initialAsset ? `${initialAsset}에 대해 설명해 주세요.` : ""
+  );
+  const [selectedAsset, setSelectedAsset] = useState<string | null>(
+    initialAsset
+  );
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
-
-
-
-  useEffect(() => {
-  if (!assetFromMap) return;
-
-  setSelectedAsset(assetFromMap);
-  setMessage(`${assetFromMap}에 대해 설명해 주세요.`);
-}, [assetFromMap]);
+  const sessionPromiseRef = useRef<Promise<string> | null>(null);
 
   const startNewChat = () => {
     setMessages([initialMessage]);
     setMessage("");
     setSelectedAsset(null);
     setSessionId(null);
+    sessionPromiseRef.current = null;
   };
 
-  const getSessionId = async () => {
+  const getSessionId = async (): Promise<string> => {
     if (sessionId) return sessionId;
 
-    const session = await createLearningSession();
-    setSessionId(session.id);
-    return session.id;
+    if (!sessionPromiseRef.current) {
+      sessionPromiseRef.current = createLearningSession().then((session) => {
+        setSessionId(session.id);
+        return session.id;
+      });
+    }
+
+    return sessionPromiseRef.current;
   };
 
   const handleFeedback = async (
@@ -86,50 +108,56 @@ export default function GuidePage() {
   };
 
   const sendMessage = async () => {
-    if (!message.trim()) return;
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage || loading) return;
 
-    const userMessage = message;
+    const history = messages
+      .filter((item) => item.role === "user" || item.role === "assistant")
+      .map((item) => ({
+        role: item.role,
+        content: item.content,
+      }));
+
     setMessage("");
     setLoading(true);
-
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: trimmedMessage },
+    ]);
 
     const startTime = Date.now();
 
     try {
       const currentSessionId = await getSessionId();
 
-      const res = await fetch("/api/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: userMessage,
+          message: trimmedMessage,
           assetName: selectedAsset,
           agentType: "guide",
-          history: messages
-            .filter((item) => item.role === "user" || item.role === "assistant")
-            .map((item) => ({
-              role: item.role,
-              content: item.content,
-            })),
+          history,
         }),
       });
 
-      const data = await res.json();
-      const time = Date.now() - startTime;
-            const answerText =
+      const data = (await response.json()) as ChatApiResponse;
+      const responseTime = Date.now() - startTime;
+      const answerText =
         data.reply ??
-        `${data.error ?? "AI 응답 생성에 실패했습니다."}\n${data.detail ?? ""}`;
+        `${data.error ?? "AI 응답 생성에 실패했습니다."}\n${
+          data.detail ?? ""
+        }`;
 
       const savedChat = await saveChatHistory({
         session_id: currentSessionId,
         agent_type: "AI 문화해설사",
         asset_name: selectedAsset,
-        question: userMessage,
+        question: trimmedMessage,
         answer: answerText,
-        response_time: time,
+        response_time: responseTime,
         model_name: data.model_name ?? "gpt-5-mini",
         user_role: "student",
         reference_source: data.reference_source ?? "RAG 문서 없음",
@@ -145,7 +173,16 @@ export default function GuidePage() {
           referenceSource: data.reference_source ?? "",
           referenceFiles: data.reference_files ?? [],
           modelName: data.model_name ?? "gpt-5-mini",
-          responseTime: time,
+          responseTime,
+        },
+      ]);
+    } catch (error: unknown) {
+      console.error("AI 문화해설사 응답 처리 실패:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "요청을 처리하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
         },
       ]);
     } finally {
@@ -160,6 +197,7 @@ export default function GuidePage() {
           <h2 className="text-xl font-bold">지역문화자산</h2>
 
           <button
+            type="button"
             onClick={startNewChat}
             className="mt-5 w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700"
           >
@@ -169,6 +207,7 @@ export default function GuidePage() {
           <div className="mt-6 space-y-3">
             {assets.map((asset) => (
               <button
+                type="button"
                 key={asset}
                 onClick={() => {
                   setSelectedAsset(asset);
@@ -203,7 +242,7 @@ export default function GuidePage() {
             <div className="max-h-[620px] space-y-5 overflow-y-auto pr-2">
               {messages.map((chat, index) => (
                 <div
-                  key={index}
+                  key={`${chat.role}-${index}-${chat.chatId ?? chat.content.slice(0, 20)}`}
                   className={`flex ${
                     chat.role === "user" ? "justify-end" : "justify-start"
                   }`}
@@ -264,8 +303,9 @@ export default function GuidePage() {
                         {chat.chatId && (
                           <div className="mt-4 flex gap-2">
                             <button
+                              type="button"
                               onClick={() =>
-                                handleFeedback(index, chat.chatId!, "helpful")
+                                handleFeedback(index, chat.chatId as string, "helpful")
                               }
                               className={`rounded-lg px-3 py-2 text-xs font-semibold ${
                                 chat.feedback === "helpful"
@@ -277,8 +317,9 @@ export default function GuidePage() {
                             </button>
 
                             <button
+                              type="button"
                               onClick={() =>
-                                handleFeedback(index, chat.chatId!, "bad")
+                                handleFeedback(index, chat.chatId as string, "bad")
                               }
                               className={`rounded-lg px-3 py-2 text-xs font-semibold ${
                                 chat.feedback === "bad"
@@ -299,25 +340,26 @@ export default function GuidePage() {
               {loading && (
                 <div className="flex justify-start">
                   <div className="rounded-2xl bg-white p-5 text-slate-500 shadow-sm">
-                    AI 문화해설사가 답변을 생성하고 있습니다...
+                    <LoadingState message="AI 문화해설사가 답변을 생성하고 있습니다..." />
                   </div>
                 </div>
               )}
-
-              <div ref={bottomRef} />
             </div>
 
             <div className="mt-6 flex gap-3">
               <AppInput
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") sendMessage();
+                onChange={(event) => setMessage(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    void sendMessage();
+                  }
                 }}
                 placeholder="궁금한 내용을 입력하세요."
               />
 
-              <AppButton onClick={sendMessage} disabled={loading}>
+              <AppButton onClick={() => void sendMessage()} disabled={loading}>
                 {loading ? "생성 중..." : "전송"}
               </AppButton>
             </div>
@@ -325,5 +367,19 @@ export default function GuidePage() {
         </section>
       </section>
     </PageLayout>
+  );
+}
+
+export default function GuidePage() {
+  return (
+    <Suspense
+      fallback={
+        <PageLayout>
+          <LoadingState message="AI 문화해설사를 준비하고 있습니다..." />
+        </PageLayout>
+      }
+    >
+      <GuideContent />
+    </Suspense>
   );
 }

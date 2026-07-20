@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { CulturalAsset } from "@/types/culturalAsset";
 import { deleteCulturalAsset } from "@/services/assetService";
+import Image from "next/image";
 
 type AssetTableProps = {
   assets: CulturalAsset[];
@@ -98,11 +99,15 @@ export default function AssetTable({ assets, loading, onEdit }: AssetTableProps)
                 <tr key={asset.id} className="border-t border-slate-200">
                   <td className="p-4">
                     {asset.image_url ? (
-                      <img
-                        src={asset.image_url}
-                        alt={asset.name}
-                        className="h-16 w-24 rounded-xl object-cover"
-                      />
+                      <div className="relative h-16 w-24">
+                        <Image
+                          src={asset.image_url}
+                          alt={asset.name}
+                          fill
+                          sizes="96px"
+                          className="rounded-xl object-cover"
+                        />
+                      </div>
                     ) : (
                       <div className="flex h-16 w-24 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">
                         이미지 없음

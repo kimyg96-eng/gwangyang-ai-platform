@@ -8,6 +8,7 @@ import { useAssets } from "@/hooks/useAssets";
 import type { CulturalAsset } from "@/types/culturalAsset";
 import KakaoMap from "@/components/map/KakaoMap";
 import { useDocuments } from "@/hooks/useDocuments";
+import Image from "next/image";
 
 export default function MapPage() {
   const { assets, loading } = useAssets();
@@ -75,11 +76,15 @@ export default function MapPage() {
           {currentAsset && (
             <div className="mt-6 overflow-hidden rounded-2xl bg-slate-50">
               {currentAsset.image_url ? (
-                <img
-                  src={currentAsset.image_url}
-                  alt={currentAsset.name}
-                  className="h-64 w-full object-cover"
-                />
+                <div className="relative h-64 w-full">
+                  <Image
+                    src={currentAsset.image_url}
+                    alt={currentAsset.name}
+                    fill
+                    sizes="100vw"
+                    className="object-cover"
+                  />
+            </div>
               ) : (
                 <div className="flex h-64 items-center justify-center bg-slate-100 text-slate-400">
                   등록된 이미지가 없습니다.

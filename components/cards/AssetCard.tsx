@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 type AssetCardProps = {
   title: string;
   description: string;
@@ -12,11 +14,15 @@ export default function AssetCard({
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-lg">
       {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt={title}
-          className="h-40 w-full object-cover"
-        />
+        <div className="relative h-40 w-full">
+          <Image
+            src={imageUrl}
+            alt={title}
+            fill
+            sizes="(max-width:768px) 100vw, 400px"
+            className="object-cover"
+          />
+        </div>
       ) : (
         <div className="flex h-40 items-center justify-center bg-slate-100 text-sm text-slate-400">
           이미지 없음

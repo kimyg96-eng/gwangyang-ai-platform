@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import AppTextarea from "@/components/ui/AppTextarea";
+import LoadingState from "@/components/ui/LoadingState";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { saveImageResult } from "@/services/imageService";
 
@@ -18,33 +19,51 @@ const examples = [
   "정채봉 동화 속 따뜻한 마을과 아이들",
 ];
 
-export default function ImagePage() {
-  const searchParams = useSearchParams();
-  const themeFromMap = searchParams.get("theme");
+type ImageApiResponse = {
+  image_url?: string;
+  prompt?: string;
+  model_name?: string;
+  error?: string;
+  detail?: string;
+};
 
-  const [theme, setTheme] = useState(themes[0]);
+type ImageWorkspaceProps = {
+  initialTheme: string;
+};
+
+function ImageWorkspace({ initialTheme }: ImageWorkspaceProps) {
+  const [theme, setTheme] = useState(initialTheme);
   const [style, setStyle] = useState(styles[0]);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(() =>
+    initialTheme
+      ? `${initialTheme}을 배경으로 학생들이 지역문화를 배우는 따뜻한 교육용 삽화`
+      : ""
+  );
   const [imageUrl, setImageUrl] = useState("");
   const [finalPrompt, setFinalPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    if (!themeFromMap) return;
-
-    setTheme(themeFromMap);
-    setPrompt(`${themeFromMap}을 배경으로 학생들이 지역문화를 배우는 따뜻한 교육용 삽화`);
+  const handleThemeChange = (nextTheme: string) => {
+    setTheme(nextTheme);
+    setPrompt(
+      `${nextTheme}을 배경으로 학생들이 지역문화를 배우는 따뜻한 교육용 삽화`
+    );
     setImageUrl("");
     setFinalPrompt("");
-  }, [themeFromMap]);
+    setErrorMessage("");
+  };
 
   const generateImage = async () => {
-    if (!prompt.trim()) {
+    const trimmedPrompt = prompt.trim();
+
+    if (!trimmedPrompt) {
       alert("이미지 프롬프트를 입력해 주세요.");
       return;
     }
 
     setLoading(true);
+    setErrorMessage("");
 
     try {
       const res = await fetch("/api/image", {
@@ -54,19 +73,18 @@ export default function ImagePage() {
         },
         body: JSON.stringify({
           theme,
-          prompt: `${prompt}\n표현 스타일: ${style}`,
+          prompt: `${trimmedPrompt}\n표현 스타일: ${style}`,
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as ImageApiResponse;
 
-      if (!res.ok) {
-        alert(
-          `${data.error ?? "이미지 생성에 실패했습니다."}\n\n상세 오류:\n${
-            data.detail ?? "상세 오류 없음"
-          }`
+      if (!res.ok || !data.image_url || !data.prompt) {
+        throw new Error(
+          [data.error ?? "이미지 생성에 실패했습니다.", data.detail]
+            .filter(Boolean)
+            .join("\n")
         );
-        return;
       }
 
       setImageUrl(data.image_url);
@@ -78,14 +96,23 @@ export default function ImagePage() {
         image_url: data.image_url,
         model_name: data.model_name ?? "gpt-image-1",
       });
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "이미지 생성 중 알 수 없는 오류가 발생했습니다.";
+
+      console.error("Failed to generate image:", error);
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const downloadImage = () => {
+  const openImage = () => {
     if (!imageUrl) return;
-    window.open(imageUrl, "_blank");
+
+    window.open(imageUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -107,12 +134,14 @@ export default function ImagePage() {
           </label>
           <select
             value={theme}
-            onChange={(e) => setTheme(e.target.value)}
+            onChange={(event) => handleThemeChange(event.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
-            {themes.includes(theme) ? null : <option>{theme}</option>}
+            {themes.includes(theme) ? null : <option value={theme}>{theme}</option>}
             {themes.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
@@ -122,7 +151,7 @@ export default function ImagePage() {
           <div className="mt-2">
             <AppTextarea
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(event) => setPrompt(event.target.value)}
               placeholder="예: 봄날의 매화마을과 섬진강을 배경으로 아이들이 산책하는 모습"
             />
           </div>
@@ -132,16 +161,18 @@ export default function ImagePage() {
           </label>
           <select
             value={style}
-            onChange={(e) => setStyle(e.target.value)}
+            onChange={(event) => setStyle(event.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
             {styles.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
           <div className="mt-6">
-            <AppButton onClick={generateImage} disabled={loading}>
+            <AppButton onClick={() => void generateImage()} disabled={loading}>
               {loading ? "이미지 생성 중..." : "이미지 생성하기"}
             </AppButton>
           </div>
@@ -152,6 +183,7 @@ export default function ImagePage() {
               {examples.map((example) => (
                 <button
                   key={example}
+                  type="button"
                   onClick={() => setPrompt(example)}
                   className="block text-left text-sm text-slate-600 hover:text-emerald-600"
                 >
@@ -166,10 +198,16 @@ export default function ImagePage() {
           <h2 className="text-2xl font-bold">생성 이미지</h2>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            {imageUrl ? (
+            {loading ? (
+              <div className="flex h-[520px] items-center justify-center rounded-2xl bg-white">
+                <LoadingState message="AI가 이미지를 생성하고 있습니다..." />
+              </div>
+            ) : imageUrl ? (
+              // 생성 이미지 URL은 외부 공급자와 Supabase Storage 등 동적 호스트를 사용할 수 있어 일반 img를 사용합니다.
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={imageUrl}
-                alt="AI 생성 이미지"
+                alt={`${theme} AI 생성 이미지`}
                 className="w-full rounded-2xl object-cover shadow-sm"
               />
             ) : (
@@ -183,6 +221,15 @@ export default function ImagePage() {
               </div>
             )}
           </div>
+
+          {errorMessage && (
+            <div
+              role="alert"
+              className="mt-6 whitespace-pre-line rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700"
+            >
+              {errorMessage}
+            </div>
+          )}
 
           {finalPrompt && (
             <div className="mt-6 rounded-2xl bg-emerald-50 p-5">
@@ -198,22 +245,45 @@ export default function ImagePage() {
           <div className="mt-6 flex flex-wrap gap-3">
             <AppButton
               variant="secondary"
-              onClick={generateImage}
-              disabled={loading}
+              onClick={() => void generateImage()}
+              disabled={loading || !prompt.trim()}
             >
               다시 생성
             </AppButton>
 
             <AppButton
               variant="secondary"
-              onClick={downloadImage}
+              onClick={openImage}
               disabled={!imageUrl}
             >
-              다운로드
+              새 창에서 열기
             </AppButton>
           </div>
         </section>
       </section>
     </PageLayout>
+  );
+}
+
+function ImagePageContent() {
+  const searchParams = useSearchParams();
+  const initialTheme = searchParams.get("theme")?.trim() || themes[0];
+
+  return <ImageWorkspace key={initialTheme} initialTheme={initialTheme} />;
+}
+
+export default function ImagePage() {
+  return (
+    <Suspense
+      fallback={
+        <PageLayout>
+          <div className="rounded-3xl bg-white p-8 shadow-sm">
+            <LoadingState message="이미지 생성 화면을 불러오고 있습니다..." />
+          </div>
+        </PageLayout>
+      }
+    >
+      <ImagePageContent />
+    </Suspense>
   );
 }

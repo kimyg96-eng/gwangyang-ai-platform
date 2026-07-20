@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import AppButton from "@/components/ui/AppButton";
 import SectionTitle from "@/components/ui/SectionTitle";
+import LoadingState from "@/components/ui/LoadingState";
 import { saveQuizResult } from "@/services/quizService";
 
 const themes = ["매화마을", "섬진강", "백운산", "정채봉 문학"];
@@ -18,36 +19,51 @@ type QuizItem = {
   explanation: string;
 };
 
-export default function QuizPage() {
+type QuizApiResponse = {
+  quizzes?: QuizItem[];
+  reference_source?: string;
+  model_name?: string;
+  error?: string;
+  detail?: string;
+};
+
+function QuizContent() {
   const searchParams = useSearchParams();
   const themeFromMap = searchParams.get("theme");
 
-  const [theme, setTheme] = useState(themes[0]);
+  return (
+    <QuizGenerator
+      key={themeFromMap ?? "quiz-default"}
+      initialTheme={themeFromMap}
+    />
+  );
+}
+
+type QuizGeneratorProps = {
+  initialTheme: string | null;
+};
+
+function QuizGenerator({ initialTheme }: QuizGeneratorProps) {
+  const [theme, setTheme] = useState(initialTheme ?? themes[0]);
   const [targetLevel, setTargetLevel] = useState(levels[0]);
   const [quizType, setQuizType] = useState(quizTypes[0]);
   const [loading, setLoading] = useState(false);
   const [quizzes, setQuizzes] = useState<QuizItem[]>([]);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<
+    Record<number, string>
+  >({});
   const [showResult, setShowResult] = useState(false);
   const [referenceSource, setReferenceSource] = useState("");
-
-  useEffect(() => {
-    if (!themeFromMap) return;
-
-    setTheme(themeFromMap);
-    setQuizzes([]);
-    setSelectedAnswers({});
-    setShowResult(false);
-    setReferenceSource("");
-  }, [themeFromMap]);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const generateQuiz = async () => {
     setLoading(true);
     setShowResult(false);
     setSelectedAnswers({});
+    setErrorMessage("");
 
     try {
-      const res = await fetch("/api/quiz", {
+      const response = await fetch("/api/quiz", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -60,25 +76,45 @@ export default function QuizPage() {
         }),
       });
 
-      const data = await res.json();
-      const items: QuizItem[] = data.quizzes ?? [];
+      const data = (await response.json()) as QuizApiResponse;
 
+      if (!response.ok) {
+        setQuizzes([]);
+        setReferenceSource("");
+        setErrorMessage(
+          `${data.error ?? "퀴즈 생성에 실패했습니다."}${
+            data.detail ? ` ${data.detail}` : ""
+          }`
+        );
+        return;
+      }
+
+      const items = data.quizzes ?? [];
       setQuizzes(items);
       setReferenceSource(data.reference_source ?? "");
 
-      for (const item of items) {
-        await saveQuizResult({
-          theme,
-          quiz_type: quizType,
-          target_level: targetLevel,
-          question: item.question,
-          options: item.options ?? null,
-          answer: item.answer,
-          explanation: item.explanation,
-          model_name: data.model_name ?? "gpt-5-mini",
-          reference_source: data.reference_source ?? "",
-        });
-      }
+      await Promise.all(
+        items.map((item) =>
+          saveQuizResult({
+            theme,
+            quiz_type: quizType,
+            target_level: targetLevel,
+            question: item.question,
+            options: item.options ?? null,
+            answer: item.answer,
+            explanation: item.explanation,
+            model_name: data.model_name ?? "gpt-5-mini",
+            reference_source: data.reference_source ?? "",
+          })
+        )
+      );
+    } catch (error: unknown) {
+      console.error("퀴즈 생성 실패:", error);
+      setQuizzes([]);
+      setReferenceSource("");
+      setErrorMessage(
+        "퀴즈를 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+      );
     } finally {
       setLoading(false);
     }
@@ -107,12 +143,14 @@ export default function QuizPage() {
           </label>
           <select
             value={theme}
-            onChange={(e) => setTheme(e.target.value)}
+            onChange={(event) => setTheme(event.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
-            {themes.includes(theme) ? null : <option>{theme}</option>}
+            {themes.includes(theme) ? null : <option value={theme}>{theme}</option>}
             {themes.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
@@ -121,11 +159,13 @@ export default function QuizPage() {
           </label>
           <select
             value={targetLevel}
-            onChange={(e) => setTargetLevel(e.target.value)}
+            onChange={(event) => setTargetLevel(event.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
             {levels.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
@@ -134,16 +174,18 @@ export default function QuizPage() {
           </label>
           <select
             value={quizType}
-            onChange={(e) => setQuizType(e.target.value)}
+            onChange={(event) => setQuizType(event.target.value)}
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
           >
             {quizTypes.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
           <div className="mt-6">
-            <AppButton onClick={generateQuiz} disabled={loading}>
+            <AppButton onClick={() => void generateQuiz()} disabled={loading}>
               {loading ? "퀴즈 생성 중..." : "AI 퀴즈 생성"}
             </AppButton>
           </div>
@@ -161,62 +203,90 @@ export default function QuizPage() {
             </div>
           )}
 
+          {errorMessage && (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
+
           <div className="mt-6 space-y-5">
-            {quizzes.length === 0 ? (
+            {loading ? (
+              <LoadingState message="AI가 학습용 퀴즈를 생성하고 있습니다..." />
+            ) : quizzes.length === 0 ? (
               <div className="rounded-2xl bg-slate-50 p-6 text-slate-500">
                 왼쪽에서 주제와 문제 유형을 선택한 뒤 AI 퀴즈 생성을 눌러주세요.
               </div>
             ) : (
-              quizzes.map((quiz, index) => (
-                <div
-                  key={index}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-6"
-                >
-                  <p className="font-bold">
-                    Q{index + 1}. {quiz.question}
-                  </p>
+              quizzes.map((quiz, index) => {
+                const options =
+                  quiz.options && quiz.options.length > 0
+                    ? quiz.options
+                    : quizType === "OX"
+                      ? ["O", "X"]
+                      : [];
 
-                  <div className="mt-4 space-y-2">
-                    {(quiz.options && quiz.options.length > 0
-                      ? quiz.options
-                      : ["O", "X"]
-                    ).map((option) => (
-                      <button
-                        key={option}
-                        onClick={() =>
+                return (
+                  <div
+                    key={`${quiz.question}-${index}`}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-6"
+                  >
+                    <p className="font-bold">
+                      Q{index + 1}. {quiz.question}
+                    </p>
+
+                    {options.length > 0 ? (
+                      <div className="mt-4 space-y-2">
+                        {options.map((option) => (
+                          <button
+                            type="button"
+                            key={option}
+                            onClick={() =>
+                              setSelectedAnswers((prev) => ({
+                                ...prev,
+                                [index]: option,
+                              }))
+                            }
+                            className={`block w-full rounded-xl border px-4 py-3 text-left ${
+                              selectedAnswers[index] === option
+                                ? "border-emerald-500 bg-emerald-50"
+                                : "border-slate-200 bg-white hover:bg-emerald-50"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <input
+                        value={selectedAnswers[index] ?? ""}
+                        onChange={(event) =>
                           setSelectedAnswers((prev) => ({
                             ...prev,
-                            [index]: option,
+                            [index]: event.target.value,
                           }))
                         }
-                        className={`block w-full rounded-xl border px-4 py-3 text-left ${
-                          selectedAnswers[index] === option
-                            ? "border-emerald-500 bg-emerald-50"
-                            : "border-slate-200 bg-white hover:bg-emerald-50"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
+                        className="mt-4 w-full rounded-xl border border-slate-300 bg-white px-4 py-3"
+                        placeholder="정답을 입력하세요."
+                      />
+                    )}
 
-                  {showResult && (
-                    <div className="mt-4 rounded-xl bg-white p-4">
-                      <p className="font-semibold">
-                        정답:{" "}
-                        <span className="text-emerald-600">{quiz.answer}</span>
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        해설: {quiz.explanation}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))
+                    {showResult && (
+                      <div className="mt-4 rounded-xl bg-white p-4">
+                        <p className="font-semibold">
+                          정답: <span className="text-emerald-600">{quiz.answer}</span>
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          해설: {quiz.explanation}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
 
-          {quizzes.length > 0 && (
+          {quizzes.length > 0 && !loading && (
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <AppButton onClick={() => setShowResult(true)}>
                 채점하기
@@ -232,5 +302,19 @@ export default function QuizPage() {
         </section>
       </section>
     </PageLayout>
+  );
+}
+
+export default function QuizPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageLayout>
+          <LoadingState message="퀴즈 생성 화면을 준비하고 있습니다..." />
+        </PageLayout>
+      }
+    >
+      <QuizContent />
+    </Suspense>
   );
 }

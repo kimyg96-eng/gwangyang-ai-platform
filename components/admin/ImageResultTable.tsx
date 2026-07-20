@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ImageResult } from "@/types/imageResult";
 import { deleteImageResult } from "@/services/imageService";
+import Image from "next/image";
 
 type ImageResultTableProps = {
   images: ImageResult[];
@@ -68,11 +69,15 @@ export default function ImageResultTable({
               className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
             >
               {image.image_url ? (
-                <img
-                  src={image.image_url}
-                  alt={image.theme ?? "AI 생성 이미지"}
-                  className="h-64 w-full object-cover"
-                />
+                <div className="relative h-64 w-full">
+                  <Image
+                    src={image.image_url}
+                    alt={image.theme ?? "AI 생성 이미지"}
+                    fill
+                    sizes="(max-width:768px) 100vw, 33vw"
+                    className="object-cover"
+                  />
+                </div>
               ) : (
                 <div className="flex h-64 items-center justify-center bg-slate-100 text-slate-500">
                   이미지 없음

@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { openai } from "@/services/openai";
 import { supabase } from "@/services/supabase";
 
+const IMAGE_BUCKET = "generated-images";
+
 export async function POST(req: Request) {
   try {
     const { theme, prompt, storyId } = await req.json();
 
-    if (!prompt) {
+    if (!prompt?.trim()) {
       return NextResponse.json(
         { error: "이미지 프롬프트가 필요합니다." },
         { status: 400 }
@@ -23,7 +25,7 @@ export async function POST(req: Request) {
 - 초·중·고 학생이 보기 좋은 밝고 안전한 분위기
 - 과도하게 사실적이지 않은 일러스트
 - 문화자산의 지역성과 자연환경이 느껴지도록 표현
-`;
+`.trim();
 
     const result = await openai.images.generate({
       model: "gpt-image-1",
@@ -42,39 +44,45 @@ export async function POST(req: Request) {
 
     const fileName = `${Date.now()}-${Math.random()
       .toString(36)
-      .substring(2)}.png`;
+      .slice(2)}.png`;
 
     const filePath = `generated/${fileName}`;
     const buffer = Buffer.from(base64, "base64");
 
     const { error: uploadError } = await supabase.storage
-      .from("image-results")
+      .from(IMAGE_BUCKET)
       .upload(filePath, buffer, {
         contentType: "image/png",
+        upsert: false,
       });
 
     if (uploadError) {
       throw uploadError;
     }
 
-    const { data } = supabase.storage
-      .from("image-results")
+    const { data: publicUrlData } = supabase.storage
+      .from(IMAGE_BUCKET)
       .getPublicUrl(filePath);
 
     return NextResponse.json({
-      image_url: data.publicUrl,
+      image_url: publicUrlData.publicUrl,
       theme: theme ?? null,
       story_id: storyId ?? null,
       prompt: imagePrompt,
       model_name: "gpt-image-1",
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Image API Error:", error);
+
+    const detail =
+      error instanceof Error
+        ? error.message
+        : String(error);
 
     return NextResponse.json(
       {
         error: "이미지 생성에 실패했습니다.",
-        detail: error instanceof Error ? error.message : String(error),
+        detail,
       },
       { status: 500 }
     );

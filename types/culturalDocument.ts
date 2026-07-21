@@ -14,6 +14,6 @@ export type CulturalDocument = {
   file_size?: number | null;
   page_count?: number | null;
   uploaded_at?: string | null;
-  indexed_status?: string | null;
+  indexed_status: string | null;
   created_at: string;
 };

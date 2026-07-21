@@ -43,15 +43,17 @@ export default function DocumentTable({
   const [indexingId, setIndexingId] = useState<string | null>(null);
 
   const filteredDocuments = useMemo(() => {
-    const q = keyword.trim().toLowerCase();
+    const query = keyword.trim().toLowerCase();
 
-    if (!q) return documents;
+    if (!query) {
+      return documents;
+    }
 
-    return documents.filter((doc) => {
+    return documents.filter((document) => {
       return (
-        (doc.asset_name ?? "").toLowerCase().includes(q) ||
-        doc.title.toLowerCase().includes(q) ||
-        (doc.content ?? "").toLowerCase().includes(q)
+        (document.asset_name ?? "").toLowerCase().includes(query) ||
+        document.title.toLowerCase().includes(query) ||
+        (document.content ?? "").toLowerCase().includes(query)
       );
     });
   }, [documents, keyword]);
@@ -60,17 +62,19 @@ export default function DocumentTable({
     setIndexingId(id);
 
     try {
-      const res = await fetch("/api/rag/index-document", {
+      const response = await fetch("/api/rag/index-document", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ documentId: id }),
+        body: JSON.stringify({
+          documentId: id,
+        }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok) {
+      if (!response.ok) {
         alert(data.error ?? "RAG 색인 중 오류가 발생했습니다.");
         return;
       }
@@ -78,7 +82,7 @@ export default function DocumentTable({
       alert("RAG 색인이 완료되었습니다.");
       window.location.reload();
     } catch (error) {
-      console.error(error);
+      console.error("RAG 색인 요청 실패:", error);
       alert("RAG 색인 요청 중 오류가 발생했습니다.");
     } finally {
       setIndexingId(null);
@@ -86,12 +90,21 @@ export default function DocumentTable({
   };
 
   const handleDelete = async (id: string) => {
-    const ok = confirm("정말 삭제하시겠습니까?");
-    if (!ok) return;
+    const confirmed = window.confirm("정말 삭제하시겠습니까?");
 
-    await deleteCulturalDocument(id);
-    alert("삭제되었습니다.");
-    window.location.reload();
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteCulturalDocument(id);
+
+      alert("삭제되었습니다.");
+      window.location.reload();
+    } catch (error) {
+      console.error("문서 삭제 실패:", error);
+      alert("문서 삭제 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -99,16 +112,19 @@ export default function DocumentTable({
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-bold">등록된 PDF 문서 목록</h2>
+
           <p className="mt-2 text-sm text-slate-500">
             총 {documents.length}건 중 {filteredDocuments.length}건 표시
           </p>
         </div>
 
         <input
+          type="search"
           value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
+          onChange={(event) => setKeyword(event.target.value)}
           className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 md:w-96"
           placeholder="문화자산명, 문서 제목, 설명 검색"
+          aria-label="PDF 문서 검색"
         />
       </div>
 
@@ -132,41 +148,54 @@ export default function DocumentTable({
             </thead>
 
             <tbody>
-              {filteredDocuments.map((doc) => {
-                const isIndexing = indexingId === doc.id;
+              {filteredDocuments.map((document) => {
+                const isIndexing = indexingId === document.id;
+                const status = isIndexing
+                  ? "indexing"
+                  : document.indexed_status ?? "pending";
 
                 return (
-                  <tr key={doc.id} className="border-t border-slate-200">
-                    <td className="p-4">{doc.asset_name}</td>
-                    <td className="p-4 font-semibold">{doc.title}</td>
+                  <tr
+                    key={document.id}
+                    className="border-t border-slate-200"
+                  >
                     <td className="p-4">
-                      {doc.file_size
-                        ? `${(doc.file_size / 1024 / 1024).toFixed(2)} MB`
+                      {document.asset_name ?? "미지정"}
+                    </td>
+
+                    <td className="p-4 font-semibold">
+                      {document.title}
+                    </td>
+
+                    <td className="p-4">
+                      {document.file_size
+                        ? `${(document.file_size / 1024 / 1024).toFixed(2)} MB`
                         : "-"}
                     </td>
+
                     <td className="p-4">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
-                          isIndexing ? "indexing" : doc.indexed_status ?? "pending"
+                          status
                         )}`}
                       >
-                       {isIndexing
-  ? "색인 중"
-  : doc.indexed_status ?? "pending"}
+                        {getStatusLabel(status)}
                       </span>
                     </td>
+
                     <td className="p-4">
-                      {doc.uploaded_at
-                        ? new Date(doc.uploaded_at).toLocaleString()
+                      {document.uploaded_at
+                        ? new Date(document.uploaded_at).toLocaleString("ko-KR")
                         : "-"}
                     </td>
+
                     <td className="p-4">
-                      {doc.file_url ? (
+                      {document.file_url ? (
                         <a
-                          href={doc.file_url}
+                          href={document.file_url}
                           target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-emerald-600"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-emerald-600 transition hover:text-emerald-700"
                         >
                           PDF 보기
                         </a>
@@ -174,18 +203,22 @@ export default function DocumentTable({
                         "-"
                       )}
                     </td>
+
                     <td className="p-4 text-center">
                       <button
-                        onClick={() => handleIndex(doc.id)}
+                        type="button"
+                        onClick={() => handleIndex(document.id)}
                         disabled={isIndexing}
-                        className="mr-2 rounded-lg bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700 disabled:bg-slate-400"
+                        className="mr-2 rounded-lg bg-emerald-600 px-3 py-2 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                       >
                         {isIndexing ? "색인 중..." : "RAG 색인"}
                       </button>
 
                       <button
-                        onClick={() => handleDelete(doc.id)}
-                        className="rounded-lg bg-red-500 px-3 py-2 text-white hover:bg-red-600"
+                        type="button"
+                        onClick={() => handleDelete(document.id)}
+                        disabled={isIndexing}
+                        className="rounded-lg bg-red-500 px-3 py-2 text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-slate-400"
                       >
                         삭제
                       </button>
@@ -196,7 +229,10 @@ export default function DocumentTable({
 
               {filteredDocuments.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-500">
+                  <td
+                    colSpan={7}
+                    className="p-8 text-center text-slate-500"
+                  >
                     검색 결과가 없습니다.
                   </td>
                 </tr>

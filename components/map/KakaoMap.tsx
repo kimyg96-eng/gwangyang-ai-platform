@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import type { CulturalAsset } from "@/types/culturalAsset";
 
 /* =========================================================
@@ -58,14 +64,19 @@ interface KakaoMapsEvent {
 interface KakaoMapsApi {
   load(callback: () => void): void;
 
-  LatLng: new (latitude: number, longitude: number) => KakaoLatLng;
+  LatLng: new (
+    latitude: number,
+    longitude: number
+  ) => KakaoLatLng;
 
   Map: new (
     container: HTMLElement,
     options: KakaoMapOptions
   ) => KakaoMap;
 
-  Marker: new (options: KakaoMarkerOptions) => KakaoMarker;
+  Marker: new (
+    options: KakaoMarkerOptions
+  ) => KakaoMarker;
 
   InfoWindow: new (
     options?: KakaoInfoWindowOptions
@@ -101,16 +112,20 @@ type Coordinates = {
 };
 
 const KAKAO_MAP_SCRIPT_ID = "kakao-map-sdk";
+
 const DEFAULT_CENTER = {
   latitude: 35.0618,
   longitude: 127.7495,
 };
+
 const DEFAULT_LEVEL = 8;
 const SELECTED_LEVEL = 5;
 
 let kakaoSdkPromise: Promise<void> | null = null;
 
-function getCoordinates(asset: CulturalAsset): Coordinates | null {
+function getCoordinates(
+  asset: CulturalAsset
+): Coordinates | null {
   if (
     asset.latitude === null ||
     asset.latitude === undefined ||
@@ -123,14 +138,22 @@ function getCoordinates(asset: CulturalAsset): Coordinates | null {
   const latitude = Number(asset.latitude);
   const longitude = Number(asset.longitude);
 
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude)
+  ) {
     return null;
   }
 
-  return { latitude, longitude };
+  return {
+    latitude,
+    longitude,
+  };
 }
 
-function createInfoWindowContent(asset: CulturalAsset): HTMLDivElement {
+function createInfoWindowContent(
+  asset: CulturalAsset
+): HTMLDivElement {
   const container = document.createElement("div");
   container.style.padding = "10px 14px";
   container.style.fontSize = "13px";
@@ -144,82 +167,100 @@ function createInfoWindowContent(asset: CulturalAsset): HTMLDivElement {
 
   const location = document.createElement("span");
   location.style.color = "#64748b";
-  location.textContent = asset.location ?? "";
+  location.textContent =
+    asset.location || "위치 정보 없음";
 
   container.append(title, lineBreak, location);
 
   return container;
 }
 
-function loadKakaoMapScript(apiKey: string): Promise<void> {
+function loadKakaoMapScript(
+  apiKey: string
+): Promise<void> {
   if (kakaoSdkPromise) {
     return kakaoSdkPromise;
   }
 
-  kakaoSdkPromise = new Promise<void>((resolve, reject) => {
-    if (window.kakao?.maps) {
-      window.kakao.maps.load(resolve);
-      return;
-    }
-
-    const handleLoadedScript = () => {
-      const kakaoMaps = window.kakao?.maps;
-
-      if (!kakaoMaps) {
-        reject(new Error("Kakao Maps SDK를 초기화하지 못했습니다."));
+  kakaoSdkPromise = new Promise<void>(
+    (resolve, reject) => {
+      if (window.kakao?.maps) {
+        window.kakao.maps.load(resolve);
         return;
       }
 
-      kakaoMaps.load(resolve);
-    };
+      const handleLoadedScript = () => {
+        const kakaoMaps = window.kakao?.maps;
 
-    const existingScript = document.getElementById(
-      KAKAO_MAP_SCRIPT_ID
-    ) as HTMLScriptElement | null;
+        if (!kakaoMaps) {
+          reject(
+            new Error(
+              "Kakao Maps SDK를 초기화하지 못했습니다."
+            )
+          );
+          return;
+        }
 
-    if (existingScript) {
-      existingScript.addEventListener("load", handleLoadedScript, {
-        once: true,
-      });
+        kakaoMaps.load(resolve);
+      };
 
-      existingScript.addEventListener(
+      const existingScript =
+        document.getElementById(
+          KAKAO_MAP_SCRIPT_ID
+        ) as HTMLScriptElement | null;
+
+      if (existingScript) {
+        existingScript.addEventListener(
+          "load",
+          handleLoadedScript,
+          { once: true }
+        );
+
+        existingScript.addEventListener(
+          "error",
+          () => {
+            reject(
+              new Error(
+                "Kakao Maps SDK 스크립트 로드에 실패했습니다."
+              )
+            );
+          },
+          { once: true }
+        );
+
+        return;
+      }
+
+      const script = document.createElement("script");
+
+      script.id = KAKAO_MAP_SCRIPT_ID;
+      script.src =
+        "https://dapi.kakao.com/v2/maps/sdk.js" +
+        `?appkey=${encodeURIComponent(apiKey)}` +
+        "&autoload=false";
+      script.async = true;
+
+      script.addEventListener(
+        "load",
+        handleLoadedScript,
+        { once: true }
+      );
+
+      script.addEventListener(
         "error",
         () => {
           reject(
-            new Error("Kakao Maps SDK 스크립트 로드에 실패했습니다.")
+            new Error(
+              "Kakao Maps SDK 스크립트 로드에 실패했습니다."
+            )
           );
         },
         { once: true }
       );
 
-      return;
+      document.head.appendChild(script);
     }
-
-    const script = document.createElement("script");
-
-    script.id = KAKAO_MAP_SCRIPT_ID;
-    script.src =
-      "https://dapi.kakao.com/v2/maps/sdk.js" +
-      `?appkey=${encodeURIComponent(apiKey)}` +
-      "&autoload=false";
-    script.async = true;
-
-    script.addEventListener("load", handleLoadedScript, {
-      once: true,
-    });
-
-    script.addEventListener(
-      "error",
-      () => {
-        reject(
-          new Error("Kakao Maps SDK 스크립트 로드에 실패했습니다.")
-        );
-      },
-      { once: true }
-    );
-
-    document.head.appendChild(script);
-  }).catch((error: unknown) => {
+  ).catch((error: unknown) => {
     kakaoSdkPromise = null;
     throw error;
   });
@@ -232,15 +273,22 @@ export default function KakaoMap({
   selectedAsset,
   onSelectAsset,
 }: KakaoMapProps) {
-  const apiKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+  const apiKey =
+    process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
 
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<KakaoMap | null>(null);
-  const infoWindowRef = useRef<KakaoInfoWindow | null>(null);
-  const markerMapRef = useRef<Map<string, MarkerEntry>>(new Map());
+  const mapContainerRef =
+    useRef<HTMLDivElement>(null);
+  const mapInstanceRef =
+    useRef<KakaoMap | null>(null);
+  const infoWindowRef =
+    useRef<KakaoInfoWindow | null>(null);
+  const markerMapRef =
+    useRef<Map<string, MarkerEntry>>(new Map());
 
-  const [isMapReady, setIsMapReady] = useState(false);
-  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [isMapReady, setIsMapReady] =
+    useState(false);
+  const [runtimeError, setRuntimeError] =
+    useState<string | null>(null);
 
   const clearMarkers = useCallback(() => {
     const kakaoMaps = window.kakao?.maps;
@@ -250,20 +298,25 @@ export default function KakaoMap({
       return;
     }
 
-    markerMapRef.current.forEach(({ marker, clickHandler }) => {
-      kakaoMaps.event.removeListener(
-        marker,
-        "click",
-        clickHandler
-      );
-      marker.setMap(null);
-    });
+    markerMapRef.current.forEach(
+      ({ marker, clickHandler }) => {
+        kakaoMaps.event.removeListener(
+          marker,
+          "click",
+          clickHandler
+        );
+        marker.setMap(null);
+      }
+    );
 
     markerMapRef.current.clear();
   }, []);
 
   const openInfoWindow = useCallback(
-    (asset: CulturalAsset, marker: KakaoMarker) => {
+    (
+      asset: CulturalAsset,
+      marker: KakaoMarker
+    ) => {
       const map = mapInstanceRef.current;
       const infoWindow = infoWindowRef.current;
 
@@ -271,7 +324,9 @@ export default function KakaoMap({
         return;
       }
 
-      infoWindow.setContent(createInfoWindowContent(asset));
+      infoWindow.setContent(
+        createInfoWindowContent(asset)
+      );
       infoWindow.open(map, marker);
     },
     []
@@ -296,7 +351,8 @@ export default function KakaoMap({
           return;
         }
 
-        const container = mapContainerRef.current;
+        const container =
+          mapContainerRef.current;
         const kakaoMaps = window.kakao?.maps;
 
         if (!container || !kakaoMaps) {
@@ -305,25 +361,33 @@ export default function KakaoMap({
           );
         }
 
-        const center = new kakaoMaps.LatLng(
-          DEFAULT_CENTER.latitude,
-          DEFAULT_CENTER.longitude
+        const center =
+          new kakaoMaps.LatLng(
+            DEFAULT_CENTER.latitude,
+            DEFAULT_CENTER.longitude
+          );
+
+        const map = new kakaoMaps.Map(
+          container,
+          {
+            center,
+            level: DEFAULT_LEVEL,
+          }
         );
 
-        const map = new kakaoMaps.Map(container, {
-          center,
-          level: DEFAULT_LEVEL,
-        });
-
         mapInstanceRef.current = map;
-        infoWindowRef.current = new kakaoMaps.InfoWindow({
-          zIndex: 1,
-        });
+        infoWindowRef.current =
+          new kakaoMaps.InfoWindow({
+            zIndex: 1,
+          });
 
-        relayoutTimer = window.setTimeout(() => {
-          map.relayout();
-          map.setCenter(center);
-        }, 300);
+        relayoutTimer = window.setTimeout(
+          () => {
+            map.relayout();
+            map.setCenter(center);
+          },
+          300
+        );
 
         if (!cancelled) {
           setRuntimeError(null);
@@ -339,7 +403,10 @@ export default function KakaoMap({
             ? error.message
             : "Kakao 지도를 불러오는 중 오류가 발생했습니다.";
 
-        console.error("Failed to initialize Kakao Map:", error);
+        console.error(
+          "Failed to initialize Kakao Map:",
+          error
+        );
         setRuntimeError(message);
       }
     };
@@ -367,28 +434,35 @@ export default function KakaoMap({
     const map = mapInstanceRef.current;
     const kakaoMaps = window.kakao?.maps;
 
-    if (!isMapReady || !map || !kakaoMaps) {
+    if (
+      !isMapReady ||
+      !map ||
+      !kakaoMaps
+    ) {
       return;
     }
 
     clearMarkers();
 
     assets.forEach((asset) => {
-      const coordinates = getCoordinates(asset);
+      const coordinates =
+        getCoordinates(asset);
 
       if (!coordinates) {
         return;
       }
 
-      const position = new kakaoMaps.LatLng(
-        coordinates.latitude,
-        coordinates.longitude
-      );
+      const position =
+        new kakaoMaps.LatLng(
+          coordinates.latitude,
+          coordinates.longitude
+        );
 
-      const marker = new kakaoMaps.Marker({
-        position,
-        title: asset.name,
-      });
+      const marker =
+        new kakaoMaps.Marker({
+          position,
+          title: asset.name,
+        });
 
       const clickHandler = () => {
         onSelectAsset(asset);
@@ -405,10 +479,13 @@ export default function KakaoMap({
         clickHandler
       );
 
-      markerMapRef.current.set(asset.id, {
-        marker,
-        clickHandler,
-      });
+      markerMapRef.current.set(
+        asset.id,
+        {
+          marker,
+          clickHandler,
+        }
+      );
     });
 
     return clearMarkers;
@@ -421,42 +498,60 @@ export default function KakaoMap({
   ]);
 
   /*
-   * 목록에서 선택된 문화자산으로 지도 이동
+   * 목록 또는 URL에서 선택된 문화자산으로 지도 이동
    */
   useEffect(() => {
     const map = mapInstanceRef.current;
     const kakaoMaps = window.kakao?.maps;
 
-    if (!isMapReady || !map || !kakaoMaps || !selectedAsset) {
+    if (
+      !isMapReady ||
+      !map ||
+      !kakaoMaps ||
+      !selectedAsset
+    ) {
       return;
     }
 
-    const coordinates = getCoordinates(selectedAsset);
+    const coordinates =
+      getCoordinates(selectedAsset);
 
     if (!coordinates) {
       return;
     }
 
-    const position = new kakaoMaps.LatLng(
-      coordinates.latitude,
-      coordinates.longitude
-    );
+    const position =
+      new kakaoMaps.LatLng(
+        coordinates.latitude,
+        coordinates.longitude
+      );
 
     map.panTo(position);
     map.setLevel(SELECTED_LEVEL);
 
-    const markerEntry = markerMapRef.current.get(selectedAsset.id);
+    const markerEntry =
+      markerMapRef.current.get(
+        selectedAsset.id
+      );
 
     if (markerEntry) {
-      openInfoWindow(selectedAsset, markerEntry.marker);
+      openInfoWindow(
+        selectedAsset,
+        markerEntry.marker
+      );
     }
-  }, [isMapReady, openInfoWindow, selectedAsset]);
+  }, [
+    isMapReady,
+    openInfoWindow,
+    selectedAsset,
+  ]);
 
   const configurationError = apiKey
     ? null
     : "NEXT_PUBLIC_KAKAO_MAP_KEY 환경변수가 설정되지 않았습니다.";
 
-  const mapError = configurationError ?? runtimeError;
+  const mapError =
+    configurationError ?? runtimeError;
 
   if (mapError) {
     return (

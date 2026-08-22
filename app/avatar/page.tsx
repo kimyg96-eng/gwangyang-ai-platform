@@ -55,13 +55,32 @@ export default function AvatarPage() {
     setSessionId(null);
   };
 
-  const getSessionId = async () => {
-    if (sessionId) return sessionId;
+  const getSessionId = async (): Promise<string | null> => {
+  if (sessionId) {
+    return sessionId;
+  }
 
+  try {
     const session = await createLearningSession();
+
+    if (!session?.id) {
+      console.warn(
+        "[Avatar] 학습 세션 ID가 없습니다. 세션 없이 대화를 계속합니다."
+      );
+      return null;
+    }
+
     setSessionId(session.id);
     return session.id;
-  };
+  } catch (error) {
+    console.error(
+      "[Avatar] 학습 세션 생성 실패. 세션 없이 AI 대화를 계속합니다.",
+      error
+    );
+
+    return null;
+  }
+};
 
   const handleFeedback = async (
     index: number,
@@ -76,42 +95,111 @@ export default function AvatarPage() {
   };
 
   const sendMessage = async () => {
-    if (!message.trim()) return;
+  const trimmedMessage = message.trim();
 
-    const userMessage = message;
-    setMessage("");
-    setLoading(true);
+  if (!trimmedMessage || loading) {
+    return;
+  }
 
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+  const userMessage = trimmedMessage;
 
-    const startTime = Date.now();
+  const history = messages.map((item) => ({
+    role: item.role,
+    content: item.content,
+  }));
 
+  setMessage("");
+  setLoading(true);
+
+  setMessages((prev) => [
+    ...prev,
+    {
+      role: "user",
+      content: userMessage,
+    },
+  ]);
+
+  const startTime = Date.now();
+
+  try {
+    console.log("[Avatar] 메시지 전송 시작");
+
+    /*
+     * 학습 세션 생성 실패가 AI 대화를 막지 않도록 처리
+     */
+    const currentSessionId = await getSessionId();
+
+    console.log("[Avatar] sessionId:", currentSessionId);
+    console.log("[Avatar] /api/chat 요청 시작");
+
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: userMessage,
+        assetName: "정채봉 문학",
+        agentType: "avatar",
+        history,
+      }),
+    });
+
+    console.log(
+      "[Avatar] /api/chat 응답:",
+      res.status,
+      res.statusText
+    );
+
+    /*
+     * 현재 Avatar 페이지는 기존 JSON 응답 구조를 유지합니다.
+     * Guide의 실제 Streaming 이벤트 구조 확인 후
+     * 다음 단계에서 Streaming 방식으로 통일합니다.
+     */
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(
+        data?.detail ||
+          data?.error ||
+          `AI 요청에 실패했습니다. (${res.status})`
+      );
+    }
+
+    const time = Date.now() - startTime;
+
+    const answerText =
+      typeof data.reply === "string" && data.reply.trim()
+        ? data.reply.trim()
+        : "AI 응답 내용이 없습니다.";
+
+    /*
+     * AI 답변은 먼저 화면에 표시합니다.
+     * Supabase 기록 저장 실패 때문에 답변이 사라지지 않도록 합니다.
+     */
+    const assistantMessage: ChatMessage = {
+      role: "assistant",
+      content: answerText,
+      referenceSource:
+        data.reference_source ?? "",
+      referenceFiles:
+        Array.isArray(data.reference_files)
+          ? data.reference_files
+          : [],
+      modelName:
+        data.model_name ?? "gpt-5-mini",
+      responseTime: time,
+    };
+
+    setMessages((prev) => [
+      ...prev,
+      assistantMessage,
+    ]);
+
+    /*
+     * 채팅 기록 저장은 부가기능으로 처리
+     */
     try {
-      const currentSessionId = await getSessionId();
-
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          assetName: "정채봉 문학",
-          agentType: "avatar",
-          history: messages.map((item) => ({
-            role: item.role,
-            content: item.content,
-          })),
-        }),
-      });
-
-      const data = await res.json();
-      const time = Date.now() - startTime;
-
-      const answerText =
-        data.reply ??
-        `${data.error ?? "AI 응답 생성에 실패했습니다."}\n${data.detail ?? ""}`;
-
       const savedChat = await saveChatHistory({
         session_id: currentSessionId,
         agent_type: "AI 정채봉 아바타",
@@ -119,29 +207,65 @@ export default function AvatarPage() {
         question: userMessage,
         answer: answerText,
         response_time: time,
-        model_name: data.model_name ?? "gpt-5-mini",
+        model_name:
+          data.model_name ?? "gpt-5-mini",
         user_role: "student",
-        reference_source: data.reference_source ?? "RAG 문서 없음",
-        tokens_used: null,
+        reference_source:
+          data.reference_source ??
+          "RAG 문서 없음",
+        tokens_used:
+          typeof data.tokens_used === "number"
+            ? data.tokens_used
+            : null,
       });
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: answerText,
-          chatId: savedChat.id,
-          referenceSource: data.reference_source ?? "",
-          referenceFiles: data.reference_files ?? [],
-          modelName: data.model_name ?? "gpt-5-mini",
-          responseTime: time,
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (savedChat?.id) {
+        setMessages((prev) =>
+          prev.map((item, index) => {
+            if (
+              index === prev.length - 1 &&
+              item.role === "assistant"
+            ) {
+              return {
+                ...item,
+                chatId: savedChat.id,
+              };
+            }
 
+            return item;
+          })
+        );
+      }
+    } catch (saveError) {
+      console.error(
+        "[Avatar] 채팅 기록 저장 실패. AI 답변은 유지합니다.",
+        saveError
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[Avatar] 메시지 처리 실패:",
+      error
+    );
+
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류가 발생했습니다.";
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          "요청을 처리하는 중 오류가 발생했습니다.\n\n" +
+          errorMessage,
+      },
+    ]);
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <PageLayout>
       <section className="grid gap-8 lg:grid-cols-[280px_1fr]">
